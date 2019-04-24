@@ -16,6 +16,11 @@
 
 #include "iiwa_ik.h"
 
+bool Garve_comp = false;
+bool Mod_DS = false;
+bool Mod_DS_3D = true;
+bool SVM_grad = false;
+
 iiwa_ik::iiwa_ik()
 	: RobotInterface()
 {
@@ -24,19 +29,37 @@ iiwa_ik::~iiwa_ik()
 {
 }
 
-void iiwa_ik::chatterCallback_Desired_end(const geometry_msgs::Pose & msg)
+void iiwa_ik::chatterCallback_Desired_end(const geometry_msgs::Pose &msg)
 {
-	Desired_EndPos(0)=msg.position.x;
-	Desired_EndPos(1)=msg.position.y;
-	Desired_EndPos(2)=msg.position.z;
+	Desired_EndPos(0) = msg.position.x;
+	Desired_EndPos(1) = msg.position.y;
+	Desired_EndPos(2) = msg.position.z;
 	rotation_temp.w() = msg.orientation.w;
 	rotation_temp.x() = msg.orientation.x;
 	rotation_temp.y() = msg.orientation.y;
 	rotation_temp.z() = msg.orientation.z;
 	rot_mat_temp = rotation_temp.toRotationMatrix();
-	Desired_EndDirY(0)=rot_mat_temp(0,1); Desired_EndDirZ(0)=rot_mat_temp(0,2);
-	Desired_EndDirY(1)=rot_mat_temp(1,1);	Desired_EndDirZ(1)=rot_mat_temp(1,2);
-	Desired_EndDirY(2)=rot_mat_temp(2,1);	Desired_EndDirZ(2)=rot_mat_temp(2,2);
+	Desired_EndDirY(0) = rot_mat_temp(0, 1);
+	Desired_EndDirZ(0) = rot_mat_temp(0, 2);
+	Desired_EndDirY(1) = rot_mat_temp(1, 1);
+	Desired_EndDirZ(1) = rot_mat_temp(1, 2);
+	Desired_EndDirY(2) = rot_mat_temp(2, 1);
+	Desired_EndDirZ(2) = rot_mat_temp(2, 2);
+}
+
+void iiwa_ik::chatterCallback_Desired_end_conv(const geometry_msgs::Pose &msg)
+{
+	Desired_EndPos_conv(0) = msg.position.x;
+	Desired_EndPos_conv(1) = msg.position.y;
+	Desired_EndPos_conv(2) = msg.position.z;
+}
+
+void iiwa_ik::chatterCallback_end_pos_conv(const geometry_msgs::Pose &msg)
+{
+	EndPos_conv(0) = msg.position.x;
+	EndPos_conv(1) = msg.position.y;
+	EndPos_conv(2) = msg.position.z;
+	Position_of_the_desired_converted_end = true;
 }
 
 void iiwa_ik::chatterCallback_position(const sensor_msgs::JointState &msg)
@@ -70,6 +93,7 @@ void iiwa_ik::reset_the_bool()
 {
 
 	Position_of_the_robot_recieved = false;
+	Position_of_the_desired_converted_end = false;
 }
 bool iiwa_ik::everythingisreceived()
 {
@@ -90,15 +114,84 @@ void iiwa_ik::Parameter_initialization()
 	Desired_EndDirZ.setZero();
 	Desired_EndPos.setZero();
 
-	cJob(0) = 00.0 * PI / 180;
-	cJob(1) = -30 * PI / 180;
-	cJob(2) = -0 * PI / 180;
-	cJob(3) = -60 * PI / 180;
-	cJob(4) = 0;
-	cJob(5) = 90.0 * PI / 180;
-	cJob(6) = 0;
+	// Original Job
+	// cJob(0) = 00.0 * PI / 180;
+	// cJob(1) = -30 * PI / 180;
+	// cJob(2) = -0 * PI / 180;
+	// cJob(3) = -60 * PI / 180;
+	// cJob(4) = 0;
+	// cJob(5) = 90.0 * PI / 180;
+	// cJob(6) = 0;
 
-	reset_the_bool();
+	// C and S Job
+	// cJob(0) = 00.0 * PI / 180;
+	// cJob(1) = 20 * PI / 180;
+	// cJob(2) = 30 * PI / 180;
+	// cJob(3) = -45 * PI / 180;
+	// cJob(4) = 0;
+	// cJob(5) = 45.0 * PI / 180;
+	// cJob(6) = 0;
+
+	// N Job
+	// cJob(0) = -0.53;
+	// cJob(1) = 0.97;
+	// cJob(2) = 0.18;
+	// cJob(3) = -1.26;
+	// cJob(4) = 0.03;
+	// cJob(5) = 0.58;
+	// cJob(6) = 0.04;
+
+	// 3D Job
+	// -0.44084870128580195, 0.9745496791958407, 0.5582655230556134, -0.9795844916846757, -0.535278856848388, 0.12864130667891643, 0.11057550711136438]
+	// -0.42624843991648076, 0.9512639706089566, 0.49822191974859337, -0.9943500155537912, 0.18947423897987525, 0.25085559339441793, -0.730038654338395
+	// /[-0.6016262463909637, 1.0421462203663066, 0.6491631725074521, -1.2531045313923426, 0.1310644690379921, -0.09092107864263442, -0.8000234717686987]
+	// [-0.5851651344990373, 1.1224597020329503, 0.803169270883952, -1.2736288347964264, -0.0387505597946015, -0.41393824414824004, -0.8208081923688973]
+	cJob(0) = -0.655;	
+	cJob(1) = 1.222;
+	cJob(2) = 0.803;
+	cJob(3) = -1.174;
+	cJob(4) = 0.039;
+	cJob(5) = -0.414;
+	cJob(6) = -0.820;
+	char cwd[PATH_MAX];
+	if (getcwd(cwd, sizeof(cwd)) != NULL)
+	{
+		printf("Current working dir: %s\n", cwd);
+	}
+	else
+	{
+		perror("getcwd() error");
+	}
+
+	if (Mod_DS)
+	{
+		cout << "initialize LPV" << endl;
+		lpv.initialize(3, 2);
+		cout << " end of initialization of LPV" << endl;
+		lpv.initialize_A("../iiwa_scenarios/iiwa_ik/data/S/A2.txt");
+		lpv.initialize_theta("../iiwa_scenarios/iiwa_ik/data/S/priors2.txt", "../iiwa_scenarios/iiwa_ik/data/S/mu2.txt", "../iiwa_scenarios/iiwa_ik/data/S/Sigma2.txt");
+		DS_Target(0) = -0.21;
+		DS_Target(1) = 0.75;
+	}
+
+	if (Mod_DS_3D)
+	{
+		cout << "initialize LPV" << endl;
+		lpv.initialize(4, 3);
+		cout << " end of initialization of LPV" << endl;
+		lpv.initialize_A("../iiwa_scenarios/iiwa_ik/data/S3/A2.txt");
+		lpv.initialize_theta("../iiwa_scenarios/iiwa_ik/data/S3/priors2.txt", "../iiwa_scenarios/iiwa_ik/data/S3/mu2.txt", "../iiwa_scenarios/iiwa_ik/data/S3/Sigma2.txt");
+		DS_Target3(0) = -0.68;
+		DS_Target3(1) = -0.05;
+		DS_Target3(2) = 0.15;
+	}
+
+	if (SVM_grad)
+	{
+			cout << "Loading SVM model" << endl;
+			SVM.loadModel(modelpath);
+	}
+		reset_the_bool();
 }
 void iiwa_ik::initKinematics()
 {
@@ -112,7 +205,7 @@ void iiwa_ik::initKinematics()
 	mSKinematicChain->setDH(4, 0.0, 0.39, M_PI_2, 0.0, 1, DEG2RAD(-170.), DEG2RAD(170.), DEG2RAD(140.0));
 	mSKinematicChain->setDH(5, 0.0, 0.00, -M_PI_2, 0.0, 1, DEG2RAD(-110.), DEG2RAD(110.), DEG2RAD(180.0));
 	mSKinematicChain->setDH(6, 0.0, 0.126, 0.0, 0.0, 1, DEG2RAD(-175.), DEG2RAD(175.), DEG2RAD(180.0));
-	//                                 0.126 is the distance between the fifth joint and the real of the robot
+	//                                 0.126 is the distance between the fifth joint and the real end-effector of the robot
 	T0.setZero();
 
 	T0(0, 0) = 1;
@@ -153,7 +246,10 @@ void iiwa_ik::Topic_initialization()
 	pub_command_robot_real = n->advertise<kuka_fri_bridge::JointStateImpedance>("/real_r_arm_controller/joint_imp_cmd", 3);
 
 	pub_end_of_robot_measured = n->advertise<geometry_msgs::Pose>("/IIWA/Real_E_Pos", 3);
-	
+
+	pub_end_of_robot_converted = n->advertise<geometry_msgs::Pose>("/robot/end/desired", 3);
+	sub_desired_position_desired_end_converted = n->subscribe("/robot/end/desired_converted", 3, &iiwa_ik::chatterCallback_Desired_end_conv, this);
+	sub_desired_position_end_converted = n->subscribe("/robot/end/measured_converted", 3, &iiwa_ik::chatterCallback_end_pos_conv, this);
 
 	pub_command = n->advertise<std_msgs::Int64>("/command", 3);
 }
@@ -228,8 +324,8 @@ RobotInterface::Status iiwa_ik::RobotInit()
 	mCommand = COMMAND_NONE;
 
 	flag_job = true;
-	AddConsoleCommand("job");	// Move the robot to its initial position which is defined by cJob
-	AddConsoleCommand("init");   // Initialize all the parameters, stops the robot and make it ready for polish!
+	AddConsoleCommand("job");  // Move the robot to its initial position which is defined by cJob
+	AddConsoleCommand("init"); // Initialize all the parameters, stops the robot and make it ready for polish!
 	AddConsoleCommand("task"); // Excuting the task! reads the desired motion of the robot at the task level and convert them to the joint level motion while preparing the robot for contacting the surface.
 
 	srand(time(NULL));
@@ -244,11 +340,11 @@ RobotInterface::Status iiwa_ik::RobotFree()
 RobotInterface::Status iiwa_ik::RobotStart()
 {
 
-	while (!Position_of_the_robot_recieved)
-	{
-		cout<<"Waiting for the robot's position"<<endl;
-		ros::spinOnce();
-	}
+	// while (!Position_of_the_robot_recieved)
+	// {
+	// 	cout << "Waiting for the robot's position" << endl;
+	// 	ros::spinOnce();
+	// }
 
 	Desired_JointPos = JointPos;
 
@@ -262,8 +358,8 @@ RobotInterface::Status iiwa_ik::RobotStart()
 	MOrientation.block(0, 1, 3, 1) = EndDirY;
 	MOrientation.block(0, 2, 3, 1) = EndDirZ;
 	Desired_EndPos = EndPos;
-	Desired_EndDirZ=EndDirZ;
-	Desired_EndDirY=EndDirY;
+	Desired_EndDirZ = EndDirZ;
+	Desired_EndDirY = EndDirY;
 
 	return STATUS_OK;
 }
@@ -297,17 +393,17 @@ RobotInterface::Status iiwa_ik::RobotUpdate()
 			ros::spinOnce();
 			Desired_JointPos = JointPos;
 			mSKinematicChain->setJoints(JointPos.data());
-	mSKinematicChain->getEndPos(EndPos);
-	mSKinematicChain->getEndDirAxis(AXIS_X, EndDirX);
-	mSKinematicChain->getEndDirAxis(AXIS_Y, EndDirY);
-	mSKinematicChain->getEndDirAxis(AXIS_Z, EndDirZ);
+			mSKinematicChain->getEndPos(EndPos);
+			mSKinematicChain->getEndDirAxis(AXIS_X, EndDirX);
+			mSKinematicChain->getEndDirAxis(AXIS_Y, EndDirY);
+			mSKinematicChain->getEndDirAxis(AXIS_Z, EndDirZ);
 
-	MOrientation.block(0, 0, 3, 1) = EndDirX;
-	MOrientation.block(0, 1, 3, 1) = EndDirY;
-	MOrientation.block(0, 2, 3, 1) = EndDirZ;
-	Desired_EndPos = EndPos;
-	Desired_EndDirZ=EndDirZ;
-	Desired_EndDirY=EndDirY;
+			MOrientation.block(0, 0, 3, 1) = EndDirX;
+			MOrientation.block(0, 1, 3, 1) = EndDirY;
+			MOrientation.block(0, 2, 3, 1) = EndDirZ;
+			Desired_EndPos = EndPos;
+			Desired_EndDirZ = EndDirZ;
+			Desired_EndDirY = EndDirY;
 			flag_init[1] = true;
 			cout << "Initialization finished" << endl;
 		}
@@ -346,7 +442,6 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 
 	ros::spinOnce();
 
-
 	mSKinematicChain->setJoints(JointPos.data());
 	mSKinematicChain->getEndPos(EndPos);
 
@@ -364,23 +459,84 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 	{
 	case PLANNER_CARTESIAN:
 
-
 		prepare_sovlve_IK();
 
-		// Preparing the Inverse-Kinematic solver
-		mTargetVelocity9(0) = (Desired_EndPos - EndPos)(0, 0) / dt;
-		mTargetVelocity9(1) = (Desired_EndPos - EndPos)(1, 0) / dt;
-		mTargetVelocity9(2) = (Desired_EndPos - EndPos)(2, 0) / dt;
-		mTargetVelocity9(3) = (Desired_EndDirZ - EndDirZ)(0, 0) / (0.1 * Gain_Orientation);
-		mTargetVelocity9(4) = (Desired_EndDirZ - EndDirZ)(1, 0) / (0.1 * Gain_Orientation);
-		mTargetVelocity9(5) = (Desired_EndDirZ - EndDirZ)(2, 0) / (0.1 * Gain_Orientation);
-		mTargetVelocity9(6) = (Desired_EndDirY - EndDirY)(0, 0) / (0.1 * Gain_Orientation);
-		mTargetVelocity9(7) = (Desired_EndDirY - EndDirY)(1, 0) / (0.1 * Gain_Orientation);
-		mTargetVelocity9(8) = (Desired_EndDirY - EndDirY)(2, 0) / (0.1 * Gain_Orientation);
+		if (Mod_DS)
+		{
+			Old_Pos(0) = EndPos(1) - DS_Target(0);
+			Old_Pos(1) = EndPos(2) - DS_Target(1);
+			new_A = lpv.Calculate_A(Old_Pos);
+			New_Pos = Old_Pos + new_A * Old_Pos/500;
+			Desired_EndPos(1) = New_Pos(0) + DS_Target(0);
+			Desired_EndPos(2) = New_Pos(1) + DS_Target(1);
+			cout << New_Pos(0) + DS_Target(0) << endl;
+			cout << New_Pos(1) + DS_Target(1) << endl;
+		}
 
+		if (Mod_DS_3D)
+		{
+			//   x: -0.735186192686
+			//   y: 0.136760180311
+  			// z: 0.281867040758
+
+			Old_Pos3(0) = EndPos(0) - DS_Target3(0);
+			Old_Pos3(1) = EndPos(1) - DS_Target3(1)+0.01;
+			Old_Pos3(2) = EndPos(2) - DS_Target3(2)+0.12;
+
+			new_A = lpv.Calculate_A(Old_Pos3);
+			New_Pos3 = Old_Pos3 + new_A * Old_Pos3/500;
+			Desired_EndPos(0) = New_Pos3(0) + DS_Target3(0);
+			Desired_EndPos(1) = New_Pos3(1) + DS_Target3(1)-0.01;
+			Desired_EndPos(2) = New_Pos3(2) + DS_Target3(2)-0.12;
+			// cout << New_Pos3(0) + DS_Target3(0) << endl;
+			// cout << New_Pos3(1) + DS_Target3(1) << endl;
+		}
+		 
+		if (SVM_grad)
+		{	
+			SVM_out = SVM.calculateGammaDerivative(EndPos_conv)/500;
+			Desired_EndPos_tmp = EndPos_conv - SVM_out;
+			Desired_EndPos_tmp_pose.position.x = Desired_EndPos_tmp(0);
+			Desired_EndPos_tmp_pose.position.y = Desired_EndPos_tmp(1);
+			Desired_EndPos_tmp_pose.position.z = Desired_EndPos_tmp(2);
+			pub_end_of_robot_converted.publish(Desired_EndPos_tmp_pose);
+			while (!Position_of_the_desired_converted_end) 
+			{
+				ros::spinOnce();
+			}
+			cout << Desired_EndPos_conv << endl;
+			// Desired_EndPos = Desired_EndPos_conv;
+		}
+
+		if (Garve_comp)
+		{
+			mTargetVelocity9(0) = 0.0;
+			mTargetVelocity9(1) = 0.0;
+			mTargetVelocity9(2) = 0.0;
+			mTargetVelocity9(3) = 0.0;
+			mTargetVelocity9(4) = 0.0;
+			mTargetVelocity9(5) = 0.0;
+			mTargetVelocity9(6) = 0.0;
+			mTargetVelocity9(7) = 0.0;
+			mTargetVelocity9(8) = 0.0;
+		}
+		else
+		{
+
+			// Preparing the Inverse-Kinematic solver
+			mTargetVelocity9(0) = (Desired_EndPos - EndPos)(0, 0) / (0.1*dt);
+			mTargetVelocity9(1) = (Desired_EndPos - EndPos)(1, 0) / (0.1*dt);
+			mTargetVelocity9(2) = (Desired_EndPos - EndPos)(2, 0) / (0.1*dt);
+			mTargetVelocity9(3) = (Desired_EndDirZ - EndDirZ)(0, 0) / (0.1 * Gain_Orientation);
+			mTargetVelocity9(4) = (Desired_EndDirZ - EndDirZ)(1, 0) / (0.1 * Gain_Orientation);
+			mTargetVelocity9(5) = (Desired_EndDirZ - EndDirZ)(2, 0) / (0.1 * Gain_Orientation);
+			mTargetVelocity9(6) = (Desired_EndDirY - EndDirY)(0, 0) / (0.1 * Gain_Orientation);
+			mTargetVelocity9(7) = (Desired_EndDirY - EndDirY)(1, 0) / (0.1 * Gain_Orientation);
+			mTargetVelocity9(8) = (Desired_EndDirY - EndDirY)(2, 0) / (0.1 * Gain_Orientation);
+		}
 		/*		cout<<"mTargetVelocity9 "<<mTargetVelocity9<<endl;*/
 
-		// Preparing the Inverse-Kinematic solver, settign up the joint limits
+		// Preparing the Inverse-Kinematic solver, setting up the joint limits
 		for (int i = 0; i < KUKA_DOF; i++)
 		{
 			double deltaLow = JointPos(i) + 0.9 * mSKinematicChain->getMax(i);
@@ -415,8 +571,8 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 
 		break;
 	case PLANNER_JOINT:
-		
-		Desired_JointPos = JointPos + 0.005 * (1 / dt) * (cJob - JointPos) * dt;
+
+		Desired_JointPos = JointPos + 0.015 * (1 / dt) * (cJob - JointPos) * dt;
 		Desired_EndPos = EndPos;
 
 		break;
@@ -428,7 +584,7 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 	msg_robot_end.orientation.x = Orientation.x();
 	msg_robot_end.orientation.y = Orientation.y();
 	msg_robot_end.orientation.z = Orientation.z();
-	msg_robot_end.orientation.w = Orientation.w();	
+	msg_robot_end.orientation.w = Orientation.w();
 
 	pub_end_of_robot_measured.publish(msg_robot_end);
 

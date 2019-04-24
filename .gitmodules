@@ -10,3 +10,6 @@
 [submodule "kuka_interface_packages"]
 	path = kuka_interface_packages
 	url = git@github.com:epfl-lasa/kuka_interface_packages.git
+[submodule "SVMGrad"]
+	path = SVMGrad
+	url = git@github.com:nbfigueroa/SVMGrad.git

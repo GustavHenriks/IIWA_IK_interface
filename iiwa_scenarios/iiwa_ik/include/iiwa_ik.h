@@ -32,10 +32,13 @@
 #include "std_msgs/Int64.h"
 #include "std_msgs/Float64.h"
 #include "geometry_msgs/Pose.h"
+#include "LPV.h"
+#include "svm_grad.h"
+#include "ros/package.h"
 
 const int KUKA_DOF = 7;			  // The number of robotic arm's joints!
 int IK_CONSTRAINTS = 9;			  // Inverse kinematic constrains, 3 position, 3 orientation around Z axis and 3 for orientation around Y axis.
-double Gain_velocity_limit = 1.5; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
+double Gain_velocity_limit = 5.0; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
 enum ENUM_AXIS
 {
 	AXIS_X = 0,
@@ -46,7 +49,8 @@ enum ENUM_PLANNER
 {
 	PLANNER_CARTESIAN = 0,
 	PLANNER_JOINT,
-	PLANNER_NONE
+	PLANNER_NONE,
+	PLANNER_SSHAPE
 };
 enum ENUM_COMMAND
 {
@@ -55,8 +59,8 @@ enum ENUM_COMMAND
 	COMMAND_Polish,
 	COMMAND_NONE
 };
-double dt = 0.002;			 // Time sample
-double Gain_Orientation = 1; // Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
+double dt = 0.002;			   // Time sample
+double Gain_Orientation = 1.4; // Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
 
 using namespace std;
 using namespace Eigen;
@@ -148,11 +152,43 @@ class iiwa_ik : public RobotInterface
 	Quaterniond Orientation;
 	Matrix3d MOrientation;
 
-
 	ENUM_COMMAND mCommand;
 	ENUM_PLANNER mPlanner;
 	double begin;
 	double Initia_time;
+
+	LPV lpv;
+	MatrixXd new_A;
+
+	Vector2d new_X;
+	Vector2d Old_Pos;
+	Vector2d New_Pos;
+	Vector2d DS_Target;
+
+	Vector3d new_X3;
+	Vector3d Old_Pos3;
+	Vector3d New_Pos3;
+	Vector3d DS_Target3;
+
+	// Using the SVM for controling the motion
+	void chatterCallback_Desired_end_conv(const geometry_msgs::Pose &msg);
+	void chatterCallback_end_pos_conv(const geometry_msgs::Pose &msg);
+
+	Vector3d EndPos_conv;
+	Vector3d Desired_EndPos_conv;
+	Vector3d Desired_EndPos_tmp;
+	Vector3d SVM_out;
+	geometry_msgs::Pose Desired_EndPos_tmp_pose;
+
+	ros::Subscriber sub_desired_position_desired_end_converted;
+	ros::Subscriber sub_desired_position_end_converted;
+
+	ros::Publisher pub_end_of_robot_converted;
+
+	bool Position_of_the_desired_converted_end;
+
+	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt";
+	SVMGrad SVM;
 };
 
 Eigen::MatrixXd pseudoinverse(const Eigen::MatrixXd &mat)

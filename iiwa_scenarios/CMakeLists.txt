@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   skinematics
   tf
   kuka_fri_bridge
+  svm_grad
+  roslib
 )
 
 set(CMAKE_CXX_FLAGS "-std=c++11")
@@ -123,7 +125,8 @@ include_directories(
 )
 
 FILE(GLOB theSourceFiles iiwa_ik/src/*.cpp)
- add_library(iiwa_ik  ${theSourceFiles})
+FILE(GLOB theHeaderFiles iiwa_ik/include/*.h)
+ add_library(iiwa_ik  ${theSourceFiles} ${theHeaderFiles})
 
 
  target_link_libraries(iiwa_ik
