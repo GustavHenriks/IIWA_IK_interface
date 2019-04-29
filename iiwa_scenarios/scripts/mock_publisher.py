@@ -5,19 +5,20 @@ import math
 import tf
 from geometry_msgs.msg import Pose
 
+dt=0.01
 
 class mock_publisher():
     def __init__(self):
         print('test')
         rospy.init_node('mock_publisher', anonymous=True)
-        self.endPub = rospy.Publisher(
-            "/robot/end/measured", Pose, queue_size=3)
+        # self.endPub = rospy.Publisher(
+        #     "/IIWA/Real_E_Pos", Pose, queue_size=3)
         self.headPub = rospy.Publisher(
             "/Head/pose", Pose, queue_size=3)
         self.basePub = rospy.Publisher(
             "/Base/pose", Pose, queue_size=3)
         self.endSub = rospy.Subscriber(
-            "/robot/end/desired_converted", Pose, self.chatterCallback_desiredPos)
+            "/IIWA/Desired_E_Pos", Pose, self.chatterCallback_desiredPos)
         self.init_end()
         self.init_head()
         self.init_base()
@@ -25,7 +26,7 @@ class mock_publisher():
         self.desired_end_received = False
         r = rospy.Rate(300)
         while not rospy.is_shutdown():
-            self.endPub.publish(self.end)
+            # self.endPub.publish(self.end)
             self.basePub.publish(self.base)
             self.headPub.publish(self.head)
             if self.desired_end_received:
@@ -46,6 +47,7 @@ class mock_publisher():
         self.head = Pose()
         self.desired_head = Pose()
         self.head.position.x = 0.889693140984
+        self.head.position.x = 0.589693140984
         self.head.position.y = -1.05602824688
         self.head.position.z = 1.32516944408
         self.head.orientation.x = 0.00235101440921
@@ -61,9 +63,14 @@ class mock_publisher():
         self.base.position.z = 0.816419422626
 
     def update_end(self):
-        self.end.position.x = self.desired_end.position.x
-        self.end.position.y = self.desired_end.position.y
-        self.end.position.z = self.desired_end.position.z
+        self.end.position.x = self.end.position.x-(self.end.position.x-self.desired_end.position.x)*dt
+        self.end.position.y = self.end.position.y-(self.end.position.y-self.desired_end.position.y)*dt
+        self.end.position.z = self.end.position.z-(self.end.position.z-self.desired_end.position.z)*dt
+        
+        # self.end.position.x = self.desired_end.position.x
+        # self.end.position.y = self.desired_end.position.y
+        # self.end.position.z = self.desired_end.position.z
+        # print(self.end.position.x)
         # self.end.orientation.x = self.desired_end.orientation.x
         # self.end.orientation.y = self.desired_end.orientation.y
         # self.end.orientation.z = self.desired_end.orientation.z

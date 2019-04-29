@@ -10,24 +10,59 @@ class convert_frame():
     def __init__(self):
         self.init_params()
         self.init_nodes()
-        # self.self_test()
+        self.self_test()
         self.update()
 
     def update(self):
         r = rospy.Rate(100)
-        while not (self.end_received and self.head_received and self.base_received):
-            r.sleep()
+        # while not (self.end_received and self.head_received and self.base_received):
+        #     r.sleep()
         print("End:", self.end)
         print("Base:", self.base)
         print("Head:", self.head)
-        r2 = rospy.Rate(300)
+        r2 = rospy.Rate(500)
         while not rospy.is_shutdown():
             self.convert_pos()
             self.RobotPosConvertedPub.publish(self.end_conv)
             if self.desired_end_received:
                 self.inv_convert_pos()
+                self.convert_orientation()
+                # print(self.desired_end_conv)
                 self.RobotPosDesiredConvertedPub.publish(self.desired_end_conv)
             r2.sleep()
+
+    def init_params(self):
+        self.end = Pose()
+        self.end_conv = Pose()
+        self.desired_end = Pose()
+        self.desired_end_conv = Pose()
+        self.head = Pose()
+        self.base = Pose()
+        self.end_received = False
+        self.base_received = False
+        self.head_received = False
+        self.desired_end_received = False
+        self.up = [0,0,1]
+        self.rot_mat = np.zeros((4,4))
+
+    def init_nodes(self):
+        rospy.init_node('convert_frame', anonymous=True)
+        # self.RobotPosSub = rospy.Subscriber(
+        #     "/robot/end/measured", Pose, self.chatterCallback_RobotEnd)
+        self.RobotPosSub = rospy.Subscriber(
+            "/IIWA/Real_E_Pos", Pose, self.chatterCallback_RobotEnd)
+        self.RobotPosSub = rospy.Subscriber(
+            "/Base/pose", Pose, self.chatterCallback_RobotBase)
+        self.RobotPosSub = rospy.Subscriber(
+            "/Head/pose", Pose, self.chatterCallback_Head)
+        self.RobotPosDesiredSub = rospy.Subscriber(
+            "/robot/end/desired", Pose, self.chatterCallback_desiredPos)
+        self.RobotPosConvertedPub = rospy.Publisher(
+            "/robot/end/measured_converted", Pose, queue_size=3)
+        self.RobotPosDesiredConvertedPub = rospy.Publisher(
+            "/robot/end/desired_converted", Pose, queue_size=3)
+        # self.RobotPosDesiredConvertedPub = rospy.Publisher(
+        #     "/IIWA/Desired_E_Pos", Pose, queue_size=3)
 
     def convert_pos(self):
         self.end_vec = np.array([self.end.position.x,
@@ -74,36 +109,30 @@ class convert_frame():
         self.desired_end_conv.position.y = -self.desired_end_vec_conv[1]
         self.desired_end_conv.position.z = self.desired_end_vec_conv[2]
 
-    def init_params(self):
-        self.end = Pose()
-        self.end_conv = Pose()
-        self.desired_end = Pose()
-        self.desired_end_conv = Pose()
-        self.head = Pose()
-        self.base = Pose()
-        self.end_received = False
-        self.base_received = False
-        self.head_received = False
-        self.desired_end_received = False
-
-    def init_nodes(self):
-        rospy.init_node('convert_frame', anonymous=True)
-        # self.RobotPosSub = rospy.Subscriber(
-        #     "/robot/end/measured", Pose, self.chatterCallback_RobotEnd)
-        self.RobotPosSub = rospy.Subscriber(
-            "/IIWA/Real_E_Pos", Pose, self.chatterCallback_RobotEnd)
-        self.RobotPosSub = rospy.Subscriber(
-            "/Base/pose", Pose, self.chatterCallback_RobotBase)
-        self.RobotPosSub = rospy.Subscriber(
-            "/Head/pose", Pose, self.chatterCallback_Head)
-        self.RobotPosDesiredSub = rospy.Subscriber(
-            "/robot/end/desired", Pose, self.chatterCallback_desiredPos)
-        self.RobotPosConvertedPub = rospy.Publisher(
-            "/robot/end/measured_converted", Pose, queue_size=3)
-        # self.RobotPosDesiredConvertedPub = rospy.Publisher(
-        #     "/robot/end/desired_converted", Pose, queue_size=3)
-        self.RobotPosDesiredConvertedPub = rospy.Publisher(
-            "/IIWA/Desired_E_Pos", Pose, queue_size=3)
+    def convert_orientation(self):
+        # print(self.desired_end_conv.position.x-self.end.position.x)
+        # print(self.desired_end_conv.position.z-self.end.position.y)
+        # print(self.desired_end_conv.position.z-self.end.position.z)
+        self.dirx=self.desired_end_conv.position.x-self.end.position.x
+        self.diry=self.desired_end_conv.position.y-self.end.position.y
+        self.dirz=self.desired_end_conv.position.z-self.end.position.z
+        self.dir = [self.dirx, self.diry, self.dirz]/np.linalg.norm([self.dirx, self.diry, self.dirz])
+        # print("Dir", self.dir)
+        self.cross_vec1 = np.cross(self.up, self.dir)/np.linalg.norm(np.cross(self.up,self.dir))
+        # print("cross_Vec1 ", self.cross_vec1)
+        self.cross_vec2 = np.cross(self.dir, self.cross_vec1)/np.linalg.norm(np.cross(self.dir, self.cross_vec1))
+        # print("cross_Vec2 ", self.cross_vec2)
+        self.rot_mat[0:3,0]=self.cross_vec1
+        self.rot_mat[0:3,1]=self.cross_vec2
+        self.rot_mat[0:3,2]=self.dir
+        self.rot_mat[3,3]=1
+        # print("Rot_mat ", self.rot_mat)
+        self.quat_tmp = tf.transformations.quaternion_from_matrix(self.rot_mat)
+        # print("quat_tmp", self.quat_tmp )
+        self.desired_end_conv.orientation.x =  self.quat_tmp[0]
+        self.desired_end_conv.orientation.y =  self.quat_tmp[1]
+        self.desired_end_conv.orientation.z =  self.quat_tmp[2]
+        self.desired_end_conv.orientation.w =  self.quat_tmp[3]
 
     def self_test(self):
         self.base_o = [-0.000830705626868, 0.000430435611634,
@@ -134,6 +163,7 @@ class convert_frame():
         print(self.head_o)
         print(tf.transformations.quaternion_from_matrix(self.tran))
         print(np.matmul(self.tran, self.end_p))
+        print(tf.transformations.rotation_matrix(0.4,[1,2,3]))
 
     def chatterCallback_desiredPos(self, data):
         self.desired_end.position.x = data.position.x

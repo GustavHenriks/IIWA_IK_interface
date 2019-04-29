@@ -38,7 +38,7 @@
 
 const int KUKA_DOF = 7;			  // The number of robotic arm's joints!
 int IK_CONSTRAINTS = 9;			  // Inverse kinematic constrains, 3 position, 3 orientation around Z axis and 3 for orientation around Y axis.
-double Gain_velocity_limit = 5.0; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
+double Gain_velocity_limit = 1.0; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
 enum ENUM_AXIS
 {
 	AXIS_X = 0,
@@ -176,6 +176,7 @@ class iiwa_ik : public RobotInterface
 
 	Vector3d EndPos_conv;
 	Vector3d Desired_EndPos_conv;
+	VectorXd Desired_End_orientation;
 	Vector3d Desired_EndPos_tmp;
 	Vector3d SVM_out;
 	geometry_msgs::Pose Desired_EndPos_tmp_pose;
@@ -189,6 +190,8 @@ class iiwa_ik : public RobotInterface
 
 	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt";
 	SVMGrad SVM;
+
+	double gamma_dist; 
 };
 
 Eigen::MatrixXd pseudoinverse(const Eigen::MatrixXd &mat)

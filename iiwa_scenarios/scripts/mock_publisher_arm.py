@@ -5,14 +5,14 @@ import math
 import tf
 from geometry_msgs.msg import Pose
 
-dt=0.01
+dt=0.001
 
 class mock_publisher():
     def __init__(self):
         print('test')
         rospy.init_node('mock_publisher', anonymous=True)
         self.endPub = rospy.Publisher(
-            "/robot/end/measured", Pose, queue_size=3)
+            "/IIWA/Real_E_Pos", Pose, queue_size=3)
         self.shoulderPub = rospy.Publisher(
             "/Shoulder/pose", Pose, queue_size=3)
         self.handPub = rospy.Publisher(
@@ -32,6 +32,7 @@ class mock_publisher():
             self.endPub.publish(self.end)
             self.basePub.publish(self.base)
             self.shoulderPub.publish(self.shoulder)
+            self.handPub.publish(self.hand)
             if self.desired_end_received:
                 self.update_end()
             r.sleep()
@@ -49,24 +50,25 @@ class mock_publisher():
     def init_shoulder(self):
         self.shoulder = Pose()
         self.desired_shoulder = Pose()
-        self.shoulder.position.x = 0.889693140984
-        self.shoulder.position.y = -1.05602824688
-        self.shoulder.position.z = 1.32516944408
-        self.shoulder.orientation.x = 0.00235101440921
-        self.shoulder.orientation.y = -0.00610731774941
-        self.shoulder.orientation.z = 0.0025682055857
-        self.shoulder.orientation.w = -0.999975264072
+        self.shoulder.position.x = 0.527764558792
+        self.shoulder.position.y = -0.618398308754
+        self.shoulder.position.z = 1.22047162056
+        self.shoulder.orientation.x = -0.664777219296
+        self.shoulder.orientation.y = 0.0852108821273
+        self.shoulder.orientation.z = -0.130120888352
+        self.shoulder.orientation.w = -0.730670273304
 
     def init_hand(self):
         self.hand = Pose()
         self.desired_hand = Pose()
-        self.hand.position.x = 0.889693140984
-        self.hand.position.y = -1.05602824688
-        self.hand.position.z = 1.32516944408
-        self.hand.orientation.x = 0.00235101440921
-        self.hand.orientation.y = -0.00610731774941
-        self.hand.orientation.z = 0.0025682055857
-        self.hand.orientation.w = -0.999975264072
+        self.hand.position.x =  0.467085987329
+        self.hand.position.y = -1.19549167156
+        self.hand.position.z = 1.1878027916
+        self.hand.orientation.x = -0.00212644506246
+        self.hand.orientation.y = 0.00170458073262
+        self.hand.orientation.z = -0.0156762357801
+        self.hand.orientation.w = -0.999873459339
+
 
     def init_base(self):
         self.base = Pose()
@@ -77,9 +79,9 @@ class mock_publisher():
     
 
     def update_end(self):
-        self.end.position.x = self.end.position.x+self.desired_end.position.x*dt
-        self.end.position.y = self.end.position.x+self.desired_end.position.y*dt
-        self.end.position.z = self.end.position.x+self.desired_end.position.z*dt
+        self.end.position.x = self.end.position.x+(self.desired_end.position.x-self.end.position.x)*dt
+        self.end.position.y = self.end.position.x+(self.desired_end.position.y-self.end.position.y)*dt
+        self.end.position.z = self.end.position.x+(self.desired_end.position.z-self.end.position.z)*dt
         # self.end.orientation.x = self.desired_end.orientation.x
         # self.end.orientation.y = self.desired_end.orientation.y
         # self.end.orientation.z = self.desired_end.orientation.z
