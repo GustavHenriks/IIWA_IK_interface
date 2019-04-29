@@ -188,7 +188,8 @@ class iiwa_ik : public RobotInterface
 
 	bool Position_of_the_desired_converted_end;
 
-	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt";
+	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt"; 
+	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model.txt";
 	SVMGrad SVM;
 
 	double gamma_dist; 

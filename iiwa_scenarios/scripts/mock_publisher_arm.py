@@ -11,8 +11,8 @@ class mock_publisher():
     def __init__(self):
         print('test')
         rospy.init_node('mock_publisher', anonymous=True)
-        self.endPub = rospy.Publisher(
-            "/IIWA/Real_E_Pos", Pose, queue_size=3)
+        # self.endPub = rospy.Publisher(
+        #     "/IIWA/Real_E_Pos", Pose, queue_size=3)
         self.shoulderPub = rospy.Publisher(
             "/Shoulder/pose", Pose, queue_size=3)
         self.handPub = rospy.Publisher(
@@ -29,7 +29,7 @@ class mock_publisher():
         self.desired_end_received = False
         r = rospy.Rate(300)
         while not rospy.is_shutdown():
-            self.endPub.publish(self.end)
+            # self.endPub.publish(self.end)
             self.basePub.publish(self.base)
             self.shoulderPub.publish(self.shoulder)
             self.handPub.publish(self.hand)
@@ -50,7 +50,7 @@ class mock_publisher():
     def init_shoulder(self):
         self.shoulder = Pose()
         self.desired_shoulder = Pose()
-        self.shoulder.position.x = 0.527764558792
+        self.shoulder.position.x = 0.527764558792-0.2
         self.shoulder.position.y = -0.618398308754
         self.shoulder.position.z = 1.22047162056
         self.shoulder.orientation.x = -0.664777219296
@@ -61,7 +61,7 @@ class mock_publisher():
     def init_hand(self):
         self.hand = Pose()
         self.desired_hand = Pose()
-        self.hand.position.x =  0.467085987329
+        self.hand.position.x =  0.467085987329- 0.2
         self.hand.position.y = -1.19549167156
         self.hand.position.z = 1.1878027916
         self.hand.orientation.x = -0.00212644506246
