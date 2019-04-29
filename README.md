@@ -1,3 +1,5 @@
+This repository is an edit of https://github.com/epfl-lasa/IIWA_IK_interface, and is used for testing purposes
+
 # IIWA_IK_interface
 This package provides a higher level as well as low level interface to IIWA. You can send the joint space positions or you can directly send the end-effector position and orientation.
 
