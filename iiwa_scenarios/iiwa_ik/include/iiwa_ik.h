@@ -38,7 +38,7 @@
 
 const int KUKA_DOF = 7;			  // The number of robotic arm's joints!
 int IK_CONSTRAINTS = 9;			  // Inverse kinematic constrains, 3 position, 3 orientation around Z axis and 3 for orientation around Y axis.
-double Gain_velocity_limit = 1.0; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
+double Gain_velocity_limit = 2; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
 enum ENUM_AXIS
 {
 	AXIS_X = 0,
@@ -60,7 +60,7 @@ enum ENUM_COMMAND
 	COMMAND_NONE
 };
 double dt = 0.002;			   // Time sample
-double Gain_Orientation = 1.4; // Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
+double Gain_Orientation = 1.0; // 1.4 Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
 
 using namespace std;
 using namespace Eigen;
@@ -179,17 +179,21 @@ class iiwa_ik : public RobotInterface
 	VectorXd Desired_End_orientation;
 	Vector3d Desired_EndPos_tmp;
 	Vector3d SVM_out;
+	Vector3d gamma_vec;
 	geometry_msgs::Pose Desired_EndPos_tmp_pose;
 
 	ros::Subscriber sub_desired_position_desired_end_converted;
 	ros::Subscriber sub_desired_position_end_converted;
 
 	ros::Publisher pub_end_of_robot_converted;
+	ros::Publisher pub_gamma;
+	geometry_msgs::Pose gamma_pose;
 
 	bool Position_of_the_desired_converted_end;
 
 	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt"; 
-	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model.txt";
+	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model.txt";
+	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model2.txt"; 
 	SVMGrad SVM;
 
 	double gamma_dist; 

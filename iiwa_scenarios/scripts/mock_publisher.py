@@ -11,14 +11,16 @@ class mock_publisher():
     def __init__(self):
         print('test')
         rospy.init_node('mock_publisher', anonymous=True)
-        # self.endPub = rospy.Publisher(
-        #     "/IIWA/Real_E_Pos", Pose, queue_size=3)
+        self.endPub = rospy.Publisher(
+            "/IIWA/Real_E_Pos", Pose, queue_size=3)
         self.headPub = rospy.Publisher(
             "/Head/pose", Pose, queue_size=3)
         self.basePub = rospy.Publisher(
             "/Base/pose", Pose, queue_size=3)
         self.endSub = rospy.Subscriber(
             "/IIWA/Desired_E_Pos", Pose, self.chatterCallback_desiredPos)
+        # self.endSub = rospy.Subscriber(
+        #     "/end/desired_converted", Pose, self.chatterCallback_desiredPos)
         self.init_end()
         self.init_head()
         self.init_base()
@@ -26,11 +28,12 @@ class mock_publisher():
         self.desired_end_received = False
         r = rospy.Rate(300)
         while not rospy.is_shutdown():
+            print(self.desired_end)
             # self.endPub.publish(self.end)
             self.basePub.publish(self.base)
             self.headPub.publish(self.head)
             if self.desired_end_received:
-                self.update_end()
+                # self.update_end()
             r.sleep()
 
     def init_end(self):
