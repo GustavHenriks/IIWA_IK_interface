@@ -32,6 +32,7 @@
 #include "std_msgs/Int64.h"
 #include "std_msgs/Float64.h"
 #include "geometry_msgs/Pose.h"
+#include "geometry_msgs/PoseStamped.h"
 #include "LPV.h"
 #include "svm_grad.h"
 #include "ros/package.h"
@@ -60,7 +61,7 @@ enum ENUM_COMMAND
 	COMMAND_NONE
 };
 double dt = 0.002;			   // Time sample
-double Gain_Orientation = 1.0; // 1.4 Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
+double Gain_Orientation = 0.5; // 1.4 Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
 
 using namespace std;
 using namespace Eigen;
@@ -173,6 +174,9 @@ class iiwa_ik : public RobotInterface
 	// Using the SVM for controling the motion
 	void chatterCallback_Desired_end_conv(const geometry_msgs::Pose &msg);
 	void chatterCallback_end_pos_conv(const geometry_msgs::Pose &msg);
+	void chatterCallback_base(const geometry_msgs::PoseStamped &msg);
+	void chatterCallback_shoulder(const geometry_msgs::PoseStamped &msg);
+	void chatterCallback_hand(const geometry_msgs::PoseStamped &msg);
 
 	Vector3d EndPos_conv;
 	Vector3d Desired_EndPos_conv;
@@ -180,10 +184,18 @@ class iiwa_ik : public RobotInterface
 	Vector3d Desired_EndPos_tmp;
 	Vector3d SVM_out;
 	Vector3d gamma_vec;
+	Vector3d Hand_pos;
+	Vector3d Shoulder_pos;
+	Vector3d base_pos;
+	Vector3d target;
+
 	geometry_msgs::Pose Desired_EndPos_tmp_pose;
 
 	ros::Subscriber sub_desired_position_desired_end_converted;
 	ros::Subscriber sub_desired_position_end_converted;
+	ros::Subscriber sub_hand;
+	ros::Subscriber sub_shoulder;
+	ros::Subscriber sub_base;
 
 	ros::Publisher pub_end_of_robot_converted;
 	ros::Publisher pub_gamma;

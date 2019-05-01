@@ -20,6 +20,8 @@ bool Garve_comp = false;
 bool Mod_DS = false;
 bool Mod_DS_3D = false;
 bool SVM_grad = true;
+bool lin_DS = true;
+bool target_hand = 1;
 
 iiwa_ik::iiwa_ik()
 	: RobotInterface()
@@ -64,6 +66,28 @@ void iiwa_ik::chatterCallback_end_pos_conv(const geometry_msgs::Pose &msg)
 	EndPos_conv(0) = msg.position.x;
 	EndPos_conv(1) = msg.position.y;
 	EndPos_conv(2) = msg.position.z;
+}
+
+void iiwa_ik::chatterCallback_base(const geometry_msgs::PoseStamped &msg)
+{
+	base_pos(0) = -msg.pose.position.x;
+	base_pos(1) = -msg.pose.position.y;
+	base_pos(2) = msg.pose.position.z;
+}
+
+void iiwa_ik::chatterCallback_shoulder(const geometry_msgs::PoseStamped &msg)
+{
+	Shoulder_pos(0) = -msg.pose.position.x - base_pos(0);
+	Shoulder_pos(1) = -msg.pose.position.y - base_pos(1);
+	Shoulder_pos(2) = msg.pose.position.z - base_pos(2);
+	cout << "Shoulder" << Shoulder_pos << endl;
+}
+
+void iiwa_ik::chatterCallback_hand(const geometry_msgs::PoseStamped &msg)
+{
+	Hand_pos(0) = -msg.pose.position.x - base_pos(0);
+	Hand_pos(1) = -msg.pose.position.y - base_pos(1);
+	Hand_pos(2) = msg.pose.position.z - base_pos(2);
 }
 
 void iiwa_ik::chatterCallback_position(const sensor_msgs::JointState &msg)
@@ -162,9 +186,11 @@ void iiwa_ik::Parameter_initialization()
 	cJob(0) = 0.0;
 	cJob(1) = 5 * PI / 180;
 	cJob(2) = 0.0;
-	cJob(3) = -45.0 * PI / 180;;
+	cJob(3) = -45.0 * PI / 180;
+	;
 	cJob(4) = 0.00;
-	cJob(5) = 90.0 * PI / 180;;
+	cJob(5) = 90.0 * PI / 180;
+	;
 	cJob(6) = 0.0;
 	char cwd[PATH_MAX];
 	if (getcwd(cwd, sizeof(cwd)) != NULL)
@@ -263,8 +289,12 @@ void iiwa_ik::Topic_initialization()
 
 	pub_end_of_robot_converted = n->advertise<geometry_msgs::Pose>("/robot/end/desired", 3);
 	pub_gamma = n->advertise<geometry_msgs::Pose>("/gamma/pose", 3);
+
 	sub_desired_position_desired_end_converted = n->subscribe("/robot/end/desired_converted", 3, &iiwa_ik::chatterCallback_Desired_end_conv, this);
 	sub_desired_position_end_converted = n->subscribe("/robot/end/measured_converted", 3, &iiwa_ik::chatterCallback_end_pos_conv, this);
+	sub_hand = n->subscribe("/Hand/pose", 3, &iiwa_ik::chatterCallback_hand, this);
+	sub_shoulder = n->subscribe("/Shoulder/pose", 3, &iiwa_ik::chatterCallback_shoulder, this);
+	sub_base = n->subscribe("/Robot_base/pose", 3, &iiwa_ik::chatterCallback_base, this);
 
 	pub_command = n->advertise<std_msgs::Int64>("/command", 3);
 }
@@ -510,20 +540,20 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 
 		if (SVM_grad)
 		{
-			gamma_dist = SVM.calculateGamma(EndPos_conv);
+			gamma_dist = SVM.calculateGamma(EndPos_conv)-0.12;
 			gamma_vec = SVM.calculateGammaDerivative(EndPos_conv);
-			gamma_pose.position.x=gamma_vec(0);
-			gamma_pose.position.y=gamma_vec(1);
-			gamma_pose.position.z=gamma_vec(2);
+			gamma_pose.position.x = gamma_vec(0);
+			gamma_pose.position.y = gamma_vec(1);
+			gamma_pose.position.z = gamma_vec(2);
 			pub_gamma.publish(gamma_pose);
 			// SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 1000;
 			cout << "gamma_dist" << gamma_dist << endl;
-			if (gamma_dist > 0.1)
+			if (gamma_dist > 0.08)
 			{
-				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 250;
+				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 				Desired_EndPos_tmp = EndPos_conv - SVM_out;
 			}
-			if (gamma_dist < 0.05)
+			if (gamma_dist < 0.01)
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 				Desired_EndPos_tmp = EndPos_conv + SVM_out;
@@ -541,13 +571,46 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			cout << "Curr " << Desired_EndPos[0] << endl;
 			cout << "Next " << Desired_EndPos_conv[0] << endl;
 			cout << "Gamma " << SVM.calculateGamma(EndPos_conv) << endl;
-			if (SVM.calculateGamma(EndPos_conv) < 0.10 && SVM.calculateGamma(EndPos_conv) > 0.05)
+			if (gamma_dist < 0.08 && gamma_dist > 0.01)
 			{
-				cout << "In the zone" << endl;
-				Desired_EndPos = EndPos;
-				Desired_EndDirZ = EndDirZ;
-				Desired_EndDirY = EndDirY;
-				// In_the_zone=true;
+				if (lin_DS)
+				{
+					if (target_hand)
+					{
+						target = Hand_pos;
+					}
+					else
+					{
+						target = Shoulder_pos;
+					}
+					
+					Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) / 500;
+					cout << "Desired_EndPos " << Desired_EndPos << endl;
+					cout << "target " << target << endl;
+					rotation_temp.y() = Desired_End_orientation(1);
+					rotation_temp.z() = Desired_End_orientation(2);
+					rotation_temp.w() = Desired_End_orientation(3);
+					rot_mat_temp = rotation_temp.toRotationMatrix();
+					Desired_EndDirY(0) = rot_mat_temp(0, 1);
+					Desired_EndDirZ(0) = rot_mat_temp(0, 2);
+					Desired_EndDirY(1) = rot_mat_temp(1, 1);
+					Desired_EndDirZ(1) = rot_mat_temp(1, 2);
+					Desired_EndDirY(2) = rot_mat_temp(2, 1);
+					Desired_EndDirZ(2) = rot_mat_temp(2, 2);
+
+					if (abs(EndPos(1) - target(1)) < 0.1+0.15)
+					{
+						target_hand = (1 - target_hand);
+					}
+				}
+				else
+				{
+					cout << "In the zone" << endl;
+					Desired_EndPos = EndPos;
+					Desired_EndDirZ = EndDirZ;
+					Desired_EndDirY = EndDirY;
+					// In_the_zone=true;
+				}
 			}
 			else
 			{
@@ -632,7 +695,7 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			Desired_JointVel(i) = mJointDesVel(i);
 		}
 
-		Desired_JointPos = JointPos + Desired_JointVel * dt*0.4;
+		Desired_JointPos = JointPos + Desired_JointVel * dt * 0.6;
 
 		break;
 	case PLANNER_JOINT:
