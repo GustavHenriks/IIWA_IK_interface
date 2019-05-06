@@ -177,17 +177,38 @@ class iiwa_ik : public RobotInterface
 	void chatterCallback_base(const geometry_msgs::PoseStamped &msg);
 	void chatterCallback_shoulder(const geometry_msgs::PoseStamped &msg);
 	void chatterCallback_hand(const geometry_msgs::PoseStamped &msg);
+	Vector2d ds(Vector2d grad, double r_value);
 
 	Vector3d EndPos_conv;
 	Vector3d Desired_EndPos_conv;
 	VectorXd Desired_End_orientation;
 	Vector3d Desired_EndPos_tmp;
+	Vector3d Desired_EndPos_lin;
 	Vector3d SVM_out;
 	Vector3d gamma_vec;
 	Vector3d Hand_pos;
 	Vector3d Shoulder_pos;
 	Vector3d base_pos;
 	Vector3d target;
+	
+	Vector3d circle_grad;
+	Matrix3d circle_rot;
+	Matrix3d circle_rot_inv;
+	Vector3d circle_tmp;
+	Vector3d circle_2d;
+	Vector2d circle_2d_2;
+	Vector3d circle_3d_tmp;
+	Vector2d new_ds;
+	Vector3d new_ds_3d;
+	Vector3d last_circle;
+	// DS
+	float theta;
+	double r;
+	double theta_dot;
+	double r_dot;
+	double x_dot;
+	double y_dot;
+	Vector2d v;
 
 	geometry_msgs::Pose Desired_EndPos_tmp_pose;
 
