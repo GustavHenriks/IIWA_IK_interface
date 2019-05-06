@@ -22,6 +22,7 @@ bool Mod_DS_3D = false;
 bool SVM_grad = true;
 bool lin_DS = true;
 bool target_hand = 1;
+bool test = true;
 
 iiwa_ik::iiwa_ik()
 	: RobotInterface()
@@ -80,7 +81,7 @@ void iiwa_ik::chatterCallback_shoulder(const geometry_msgs::PoseStamped &msg)
 	Shoulder_pos(0) = -msg.pose.position.x - base_pos(0);
 	Shoulder_pos(1) = -msg.pose.position.y - base_pos(1);
 	Shoulder_pos(2) = msg.pose.position.z - base_pos(2);
-	cout << "Shoulder" << Shoulder_pos << endl;
+	// cout << "Shoulder" << Shoulder_pos << endl;
 }
 
 void iiwa_ik::chatterCallback_hand(const geometry_msgs::PoseStamped &msg)
@@ -106,16 +107,20 @@ void iiwa_ik::chatterCallback_position(const sensor_msgs::JointState &msg)
 Vector2d iiwa_ik::ds(Vector2d x, double r_value)
 {
 	theta = atan2(x(1), x(0));
-	r = sqrt(pow(x(0),2) + pow(x(1),2));
+	r = sqrt(pow(x(0), 2) + pow(x(1), 2));
 
-	theta_dot = 1;
+	theta_dot = 0.5;
 	r_dot = -0.8 * (r - r_value);
 
 	x_dot = r_dot * cos(theta) - r * theta_dot * sin(theta);
 	y_dot = r_dot * sin(theta) + r * theta_dot * cos(theta);
-
+	// cout << "theta" << theta << endl;
+	// cout << "r" << r << endl;
+	// cout << "r_dot" << r_dot << endl;
+	// cout << "x_dot" << x_dot << endl;
 	v(0) = x_dot;
 	v(1) = y_dot;
+	return v;
 }
 void iiwa_ik::Send_Postion_To_Robot(VectorXd Position)
 {
@@ -244,6 +249,10 @@ void iiwa_ik::Parameter_initialization()
 		cout << "Loading SVM model" << endl;
 		SVM.loadModel(modelpath);
 		Desired_End_orientation.resize(4);
+		circle_normal << 0, 0, 1;
+		circle_gain = 0.1;
+		lin_gain = 0.001;
+		svm_gain = 0.3;
 	}
 	reset_the_bool();
 }
@@ -585,6 +594,13 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			cout << "Curr " << Desired_EndPos[0] << endl;
 			cout << "Next " << Desired_EndPos_conv[0] << endl;
 			cout << "Gamma " << SVM.calculateGamma(EndPos_conv) << endl;
+			if (gamma_dist > 0.08 && test)
+			{
+				cout << "asdfasdfasdfasdf" << endl;
+				last_end(0) = EndPos(0);
+				last_end(1) = EndPos(1);
+				last_end(2) = EndPos(2);
+			}
 			if (gamma_dist < 0.08 && gamma_dist > 0.01)
 			{
 				// if (lin_DS) //Use for linear DS only
@@ -619,6 +635,7 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 				// }
 				if (lin_DS) // Attempt for circular DS
 				{
+					test = false;
 					if (target_hand)
 					{
 						target = Hand_pos;
@@ -627,25 +644,54 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 					{
 						target = Shoulder_pos;
 					}
-
+					do
+					{
+						SVM_out2 = SVM.calculateGammaDerivative(EndPos_conv) / 500;
+						Desired_EndPos_tmp = EndPos_conv + SVM_out2;
+						SVM_vec = Desired_EndPos_tmp - EndPos_conv;
+					} while (SVM.calculateGamma(Desired_EndPos_tmp) < 0.03);
 					Desired_EndPos_lin(1) = EndPos(1) + (target(1) - EndPos(1)) / 500; // Updates only in Y direction
-
-					// circle_rot=get_rot_mat({0,0,1},SVM_out)
-					// circle_rot_inv=get_rot_mat(SVM_out, {0,0,1})
-					circle_tmp=last_circle-Desired_EndPos;
-					circle_2d=circle_rot_inv*circle_tmp.matrix();
-					circle_2d_2(0)=circle_2d(0);
-					circle_2d_2(1)=circle_2d(1);
-					new_ds=ds(circle_2d_2,0.1);
-					new_ds_3d<<new_ds,0;
-					circle_grad=circle_rot*new_ds_3d;
-					Desired_EndPos(0) = EndPos(0) + (target(0) - EndPos(0)) / 500 + circle_grad(0)/500;
-					Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) / 500 + circle_grad(1)/500;
-					Desired_EndPos(2) = EndPos(2) + (target(2) - EndPos(2)) / 500 + circle_grad(2)/500;
-
-					last_circle(0)=EndPos(0) + circle_grad(0)/500;
-					last_circle(1)=EndPos(1) + circle_grad(1)/500;
-					last_circle(2)=EndPos(2) + circle_grad(2)/500;
+					Desired_EndPos_lin(0) = Desired_EndPos(0);
+					Desired_EndPos_lin(2) = Desired_EndPos(2);
+					// cout << "circle_normal" << circle_normal << endl;
+					// cout << "SVM_out" << SVM_out << endl;
+					q.setFromTwoVectors(circle_normal, SVM_out).normalized();
+					// cout << "q1 " << q.x() << q.y() << q.z() << q.w() << endl;
+					circle_rot = q.normalized().toRotationMatrix();
+					// cout << "circle_rot" << circle_rot << endl;
+					q.setFromTwoVectors(SVM_out, circle_normal);
+					// cout << "q2" << q2 << endl;
+					circle_rot_inv = q.normalized().toRotationMatrix();
+					// circle_rot_inv = circle_rot.inverse();
+					// cout << "circle_rot_in" << circle_rot_inv << endl;
+					// last_end = Desired_EndPos_lin;
+					circle_tmp = EndPos - last_end;
+					cout << "EndPos " << EndPos << " last_end " << last_end << endl;
+					// cout << "circle_tmp" << circle_tmp << endl;
+					circle_2d = circle_rot_inv * circle_tmp.matrix();
+					// circle_2d = circle_tmp;
+					cout << "circle_2d " << circle_2d << endl;
+					circle_2d_2(0) = circle_2d(0);
+					circle_2d_2(1) = circle_2d(1);
+					// cout << "circle_2d_2" << circle_2d_2 << endl;
+					new_ds = ds(circle_2d_2, 0.03);
+					// cout << "new_ds" << new_ds << endl;
+					new_ds_3d << new_ds, 0;
+					// cout << "new_ds_3d" << new_ds_3d << endl;
+					circle_grad = circle_rot * new_ds_3d.matrix();
+					// circle_grad = new_ds_3d;
+					cout << "circle_grad" << circle_grad << endl;
+					Desired_EndPos(0) = EndPos(0) + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
+					Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) * lin_gain + circle_grad(1) * circle_gain + SVM_vec(1) * svm_gain;
+					// Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) / 500;
+					Desired_EndPos(2) = EndPos(2) + circle_grad(2) * circle_gain + SVM_vec(2) * svm_gain;
+					// Desired_EndPos(2) = Desired_EndPos(2);
+					cout << "Lin_ds" << (target(0) - EndPos(0)) * lin_gain << (target(1) - EndPos(1)) * lin_gain << (target(2) - EndPos(2)) * lin_gain << endl;
+					cout << "Circle_ds" << circle_grad(0) * circle_gain << circle_grad(1) * circle_gain << circle_grad(2) * circle_gain << endl;
+					cout << "SVM" << SVM_vec(0) * svm_gain << SVM_vec(1) * svm_gain << SVM_vec(2) * svm_gain << endl;
+					last_circle(0) = EndPos(0) + circle_grad(0) * circle_gain;
+					last_circle(1) = EndPos(1) + circle_grad(1) * circle_gain;
+					last_circle(2) = EndPos(2) + circle_grad(2) * circle_gain;
 					cout << "Desired_EndPos " << Desired_EndPos << endl;
 					cout << "target " << target << endl;
 					rotation_temp.x() = Desired_End_orientation(0);
@@ -659,7 +705,6 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 					Desired_EndDirZ(1) = rot_mat_temp(1, 2);
 					Desired_EndDirY(2) = rot_mat_temp(2, 1);
 					Desired_EndDirZ(2) = rot_mat_temp(2, 2);
-
 
 					if (abs(EndPos(1) - target(1)) < 0.1 + 0.15)
 					{

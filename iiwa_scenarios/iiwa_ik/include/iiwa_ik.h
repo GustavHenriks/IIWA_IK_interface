@@ -37,8 +37,8 @@
 #include "svm_grad.h"
 #include "ros/package.h"
 
-const int KUKA_DOF = 7;			  // The number of robotic arm's joints!
-int IK_CONSTRAINTS = 9;			  // Inverse kinematic constrains, 3 position, 3 orientation around Z axis and 3 for orientation around Y axis.
+const int KUKA_DOF = 7;			// The number of robotic arm's joints!
+int IK_CONSTRAINTS = 9;			// Inverse kinematic constrains, 3 position, 3 orientation around Z axis and 3 for orientation around Y axis.
 double Gain_velocity_limit = 2; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
 enum ENUM_AXIS
 {
@@ -185,12 +185,14 @@ class iiwa_ik : public RobotInterface
 	Vector3d Desired_EndPos_tmp;
 	Vector3d Desired_EndPos_lin;
 	Vector3d SVM_out;
+	Vector3d SVM_out2;
+	Vector3d SVM_vec;
 	Vector3d gamma_vec;
 	Vector3d Hand_pos;
 	Vector3d Shoulder_pos;
 	Vector3d base_pos;
 	Vector3d target;
-	
+
 	Vector3d circle_grad;
 	Matrix3d circle_rot;
 	Matrix3d circle_rot_inv;
@@ -201,6 +203,13 @@ class iiwa_ik : public RobotInterface
 	Vector2d new_ds;
 	Vector3d new_ds_3d;
 	Vector3d last_circle;
+	Vector3d circle_normal;
+	Vector3d last_end;
+	Quaterniond q;
+	double circle_gain;
+	double lin_gain;
+	double svm_gain;
+
 	// DS
 	float theta;
 	double r;
@@ -224,12 +233,12 @@ class iiwa_ik : public RobotInterface
 
 	bool Position_of_the_desired_converted_end;
 
-	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt"; 
+	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt";
 	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model.txt";
-	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model2.txt"; 
+	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model2.txt";
 	SVMGrad SVM;
 
-	double gamma_dist; 
+	double gamma_dist;
 };
 
 Eigen::MatrixXd pseudoinverse(const Eigen::MatrixXd &mat)
