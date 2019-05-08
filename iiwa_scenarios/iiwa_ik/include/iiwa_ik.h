@@ -210,7 +210,8 @@ class iiwa_ik : public RobotInterface
 	double lin_gain;
 	double svm_gain;
 	double lin_grad;
-
+	bool svm_activate;
+	
 	// DS
 	float theta;
 	double r;

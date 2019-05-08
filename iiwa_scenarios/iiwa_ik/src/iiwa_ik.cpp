@@ -109,7 +109,7 @@ Vector2d iiwa_ik::ds(Vector2d x, double r_value)
 	theta = atan2(x(1), x(0));
 	r = sqrt(pow(x(0), 2) + pow(x(1), 2));
 
-	theta_dot = 0.5;
+	theta_dot = 0.4;
 	r_dot = -0.8 * (r - r_value);
 
 	x_dot = r_dot * cos(theta) - r * theta_dot * sin(theta);
@@ -141,6 +141,7 @@ void iiwa_ik::reset_the_bool()
 
 	Position_of_the_robot_recieved = false;
 	Position_of_the_desired_converted_end = false;
+	svm_activate = true;
 }
 bool iiwa_ik::everythingisreceived()
 {
@@ -202,7 +203,7 @@ void iiwa_ik::Parameter_initialization()
 	// cJob(6) = -0.820;
 
 	// SVM Job
-	cJob(0) = -10.0 * PI / 180;
+	cJob(0) = -15.0 * PI / 180;
 	cJob(1) = 5 * PI / 180;
 	cJob(2) = 0.0;
 	cJob(3) = -45.0 * PI / 180;
@@ -250,9 +251,9 @@ void iiwa_ik::Parameter_initialization()
 		SVM.loadModel(modelpath);
 		Desired_End_orientation.resize(4);
 		circle_normal << 0, 0, 1;
-		circle_gain = 0.01;
-		lin_gain = 0.000;
-		svm_gain = 0.3;
+		circle_gain = 0.1;
+		lin_gain = 0.001;
+		svm_gain = 0.5;
 	}
 	reset_the_bool();
 }
@@ -571,12 +572,20 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			pub_gamma.publish(gamma_pose);
 			// SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 1000;
 			cout << "gamma_dist" << gamma_dist << endl;
-			if (gamma_dist > 0.03+0.095+0.05)
+			if (gamma_dist > 0.1-0.02 | svm_activate) //Lin 0.03+0.095+0.05
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 				Desired_EndPos_tmp = EndPos_conv - SVM_out;
+				svm_activate=true;
+				if (gamma_dist<0.08-0.01){
+					svm_activate=false;
+				}
 			}
-			if (gamma_dist < 0.01+0.095+0.05)
+			else {
+				
+				svm_activate=false;
+			}
+			if (gamma_dist < 0.04-0.2) //Lin 0.03+0.095+0.05
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 				Desired_EndPos_tmp = EndPos_conv + SVM_out;
@@ -594,14 +603,14 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			cout << "Curr " << Desired_EndPos[0] << endl;
 			cout << "Next " << Desired_EndPos_conv[0] << endl;
 			cout << "Gamma " << SVM.calculateGamma(EndPos_conv) << endl;
-			if (gamma_dist > 0.03+0.095+0.05 && test)
+			if (gamma_dist > 0.10-0.02 | svm_activate==true) //Lin 0.03+0.095+0.05
 			{
 				cout << "asdfasdfasdfasdf" << endl;
 				last_end(0) = EndPos(0);
 				last_end(1) = EndPos(1);
 				last_end(2) = EndPos(2);
 			}
-			if (gamma_dist < 0.03+0.095+0.05 && gamma_dist > 0.01+0.095+0.05)
+			if (gamma_dist < 0.1-0.02 && gamma_dist > 0.04-0.02 && svm_activate==false) //Lin 0.03+0.095+0.05 0.01+0.095+0.05
 			{
 				// if (lin_DS) //Use for linear DS only
 				// {
@@ -663,7 +672,7 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 						SVM_out2 = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 						Desired_EndPos_tmp = EndPos_conv + SVM_out2;
 						SVM_vec = Desired_EndPos_tmp - EndPos_conv;
-					} while (SVM.calculateGamma(Desired_EndPos_tmp) < 0.01+0.095+0.05);
+					} while (SVM.calculateGamma(Desired_EndPos_tmp) < 0.04-0.02);
 					Desired_EndPos_lin(1) = EndPos(1) + (target(1) - EndPos(1)) / 500; // Updates only in Y direction
 					Desired_EndPos_lin(0) = Desired_EndPos(0);
 					Desired_EndPos_lin(2) = Desired_EndPos(2);
