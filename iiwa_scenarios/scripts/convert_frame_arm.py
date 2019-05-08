@@ -3,12 +3,15 @@ import rospy
 import numpy as np
 import math
 import tf
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped, Point32
+from std_msgs.msg import Header
+from sensor_msgs.msg import PointCloud
 
 
 class convert_frame():
     def __init__(self):
         self.init_params()
+        self.load_pointcloud()
         self.init_nodes()
         # self.self_test()
         self.update()
@@ -32,10 +35,11 @@ class convert_frame():
             self.convert_pos()
             self.RobotPosConvertedPub.publish(self.end_conv)
             self.publish_on_tf(self.end, 'Measured end')
-            self.publish_on_tf(self.end_conv, 'Converted end')
+            self.publish_on_tf(self.end_conv, 'Measured conv')
             self.publish_on_tf(self.Shoulder, 'Shoulder')
             self.publish_on_tf(self.Hand, 'Hand')
             self.publish_on_tf(self.base, 'Base')
+            self.pubish_on_point_cloud(self.pointcloud)
             if self.desired_end_received:
                 self.inv_convert_pos()
                 self.convert_orientation()
@@ -60,11 +64,11 @@ class convert_frame():
         self.desired_end_received = False
         self.svm_dir = [0, 1, 0]
         self.up = [0, 0, 1]
-        self.desired_end_vec_conv = [0,0,0]
+        self.desired_end_vec_conv = [0, 0, 0]
         self.rot_mat = np.zeros((4, 4))
         self.rotation = np.zeros((3, 3))
-        self.dir = [1,0,1]
-        self.gamma_vec = [0,0,0]
+        self.dir = [1, 0, 1]
+        self.gamma_vec = [0, 0, 0]
 
     def init_nodes(self):
         rospy.init_node('convert_frame', anonymous=True)
@@ -86,6 +90,8 @@ class convert_frame():
             "/robot/end/desired_converted", Pose, queue_size=3)
         self.GammaSub = rospy.Subscriber(
             "/gamma/pose", Pose, self.chatterCallback_Gamma)
+        self.CloudPub = rospy.Publisher(
+            "/PointCloud/points", PointCloud)
         # self.RobotPosDesiredConvertedPub = rospy.Publisher(
         #     "/IIWA/Desired_E_Pos", Pose, queue_size=3)
 
@@ -160,7 +166,7 @@ class convert_frame():
         # self.end_conv.position.z = self.end_vec_conv[2]
 
     def inv_convert_pos(self):
-        self.desired_end_vec_conv_prev=self.desired_end_vec_conv
+        self.desired_end_vec_conv_prev = self.desired_end_vec_conv
         self.desired_end_vec = np.array([self.desired_end.position.x,
                                          self.desired_end.position.y, self.desired_end.position.z])
         self.base_vec = np.array([self.base.position.x,
@@ -192,7 +198,7 @@ class convert_frame():
         self.desired_end_conv.position.x = self.desired_end_vec_conv[0]
         self.desired_end_conv.position.y = self.desired_end_vec_conv[1]
         self.desired_end_conv.position.z = self.desired_end_vec_conv[2]
-        # self.desired_end_conv.position.x = -0.509373647132    
+        # self.desired_end_conv.position.x = -0.509373647132
         # self.desired_end_conv.position.y = -0.00988616389521
         # self.desired_end_conv.position.z = 0.797298121645
         # print(self.desired_end_vec_conv)
@@ -235,7 +241,7 @@ class convert_frame():
         self.dirx = self.gamma_vec[0]
         self.diry = self.gamma_vec[1]
         self.dirz = self.gamma_vec[2]
-        print(self.gamma_vec)
+        # print(self.gamma_vec)
         # print(self.desired_end_vec_conv)
         # print(self.desired_end_vec_conv_prev)
         # print(self.desired_end_vec_conv-self.desired_end_vec_conv_prev)
@@ -251,7 +257,8 @@ class convert_frame():
         self.cross_vec1 = np.cross(
             self.up, self.dir)/np.linalg.norm(np.cross(self.up, self.dir))
         # print("cross_Vec1 ", self.cross_vec1)
-        self.cross_vec1 = (self.Hand_vec-self.Shoulder_vec)/np.linalg.norm(self.Hand_vec-self.Shoulder_vec)
+        self.cross_vec1 = (self.Hand_vec-self.Shoulder_vec) / \
+            np.linalg.norm(self.Hand_vec-self.Shoulder_vec)
         self.cross_vec2 = np.cross(
             self.dir, self.cross_vec1)/np.linalg.norm(np.cross(self.dir, self.cross_vec1))
         # print("cross_Vec2 ", self.cross_vec2)
@@ -269,7 +276,8 @@ class convert_frame():
         # self.quat_tmp = tf.transformations.quaternion_from_matrix(
         #     np.dot(self.rot_mat, self.desired_end_rotation))
 
-        self.rot_mat =np.dot(tf.transformations.rotation_matrix(-90, (0, 1, 0)),self.rot_mat)
+        self.rot_mat = np.dot(
+            tf.transformations.rotation_matrix(-90, (0, 1, 0)), self.rot_mat)
         self.quat_tmp = tf.transformations.quaternion_from_matrix(self.rot_mat)
         # print("quat_tmp", self.quat_tmp )
         self.desired_end_conv.orientation.x = self.quat_tmp[0]
@@ -282,7 +290,6 @@ class convert_frame():
         # self.desired_end_conv.orientation.w = -0.346006966545
         # print(self.dir)
 
-        
     def self_test(self):
         self.base_o = [-0.000830705626868, 0.000430435611634,
                        0.00137064396404, -0.999998688698]
@@ -345,9 +352,9 @@ class convert_frame():
         self.base_received = True
 
     def chatterCallback_Shoulder(self, data):
-        self.Shoulder.position.x = data.pose.position.x
+        self.Shoulder.position.x = data.pose.position.x+0.15
         self.Shoulder.position.y = data.pose.position.y
-        self.Shoulder.position.z = data.pose.position.z
+        self.Shoulder.position.z = data.pose.position.z-0.03
         self.Shoulder.orientation.x = data.pose.orientation.x
         self.Shoulder.orientation.y = data.pose.orientation.y
         self.Shoulder.orientation.z = data.pose.orientation.z
@@ -355,7 +362,7 @@ class convert_frame():
         self.Shoulder_received = True
 
     def chatterCallback_Hand(self, data):
-        self.Hand.position.x = data.pose.position.x
+        self.Hand.position.x = data.pose.position.x+0.03+0.15
         self.Hand.position.y = data.pose.position.y
         self.Hand.position.z = data.pose.position.z
         self.Hand.orientation.x = data.pose.orientation.x
@@ -405,6 +412,25 @@ class convert_frame():
             [Obj.orientation.x, Obj.orientation.y, Obj.orientation.z, Obj.orientation.w])
         br.sendTransform((Position[0], Position[1], Position[2]), tf.transformations.quaternion_from_matrix(
             Rotation), rospy.Time.now(), name, "world_frame")
+
+    def pubish_on_point_cloud(self, X):
+        pointCloud = PointCloud()
+        header = Header()
+        header.stamp = rospy.Time.now()
+        header.frame_id = 'world_frame'
+        pointCloud.header = header
+        pointCloud.points = []
+        for i in range(len(X)):
+            Point_temp = Point32()
+            Point_temp.x = X[i][0]
+            Point_temp.y = X[i][1]
+            Point_temp.z = X[i][2]
+            pointCloud.points.append(Point_temp)
+        self.CloudPub.publish(pointCloud)
+
+    def load_pointcloud(self):
+        self.pointcloud = np.loadtxt(
+            "/home/gustavhenriks/catkin_ws_ik_test/src/IIWA_IK_interface/iiwa_scenarios/scripts/data/Pointcloud/pointcloud")
 
 
 if __name__ == '__main__':

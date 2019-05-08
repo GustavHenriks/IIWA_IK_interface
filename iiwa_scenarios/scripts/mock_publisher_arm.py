@@ -5,14 +5,15 @@ import math
 import tf
 from geometry_msgs.msg import Pose, PoseStamped
 
-dt=0.001
+dt = 0.001
+
 
 class mock_publisher():
     def __init__(self):
         print('test')
         rospy.init_node('mock_publisher', anonymous=True)
-        # self.endPub = rospy.Publisher(
-        #     "/IIWA/Real_E_Pos", Pose, queue_size=3)
+        self.endPub = rospy.Publisher(
+            "/IIWA/Real_E_Pos", Pose, queue_size=3)
         self.shoulderPub = rospy.Publisher(
             "/Shoulder/pose", PoseStamped, queue_size=3)
         self.handPub = rospy.Publisher(
@@ -21,6 +22,8 @@ class mock_publisher():
             "/Robot_base/pose", PoseStamped, queue_size=3)
         self.endSub = rospy.Subscriber(
             "/robot/end/desired_converted", Pose, self.chatterCallback_desiredPos)
+        self.endSub = rospy.Subscriber(
+            "/IIWA/Desired_E_Pos", Pose, self.chatterCallback_desiredPos)
         self.init_end()
         self.init_hand()
         self.init_shoulder()
@@ -29,12 +32,12 @@ class mock_publisher():
         self.desired_end_received = False
         r = rospy.Rate(300)
         while not rospy.is_shutdown():
-            # self.endPub.publish(self.end)
+            self.endPub.publish(self.end)
             self.basePub.publish(self.base)
             self.shoulderPub.publish(self.shoulder)
             self.handPub.publish(self.hand)
-            # if self.desired_end_received:
-                # self.update_end()
+            if self.desired_end_received:
+                self.update_end()
             r.sleep()
 
     def init_end(self):
@@ -61,7 +64,7 @@ class mock_publisher():
     def init_hand(self):
         self.hand = PoseStamped()
         self.desired_hand = Pose()
-        self.hand.pose.position.x =  0.467085987329+0.1
+        self.hand.pose.position.x = 0.467085987329+0.1
         self.hand.pose.position.y = -1.19549167156
         self.hand.pose.position.z = 1.1878027916
         self.hand.pose.orientation.x = -0.00212644506246
@@ -69,19 +72,20 @@ class mock_publisher():
         self.hand.pose.orientation.z = -0.0156762357801
         self.hand.pose.orientation.w = -0.999873459339
 
-
     def init_base(self):
         self.base = PoseStamped()
         self.desired_base = Pose()
         self.base.pose.position.x = -0.263918042183
         self.base.pose.position.y = -0.961166739464
         self.base.pose.position.z = 0.816419422626
-    
 
     def update_end(self):
-        self.end.position.x = self.end.position.x+(self.desired_end.position.x-self.end.position.x)*dt
-        self.end.position.y = self.end.position.x+(self.desired_end.position.y-self.end.position.y)*dt
-        self.end.position.z = self.end.position.x+(self.desired_end.position.z-self.end.position.z)*dt
+        self.end.position.x = self.end.position.x + \
+            (self.desired_end.position.x-self.end.position.x)*dt
+        self.end.position.y = self.end.position.y + \
+            (self.desired_end.position.y-self.end.position.y)*dt
+        self.end.position.z = self.end.position.z + \
+            (self.desired_end.position.z-self.end.position.z)*dt
         # self.end.orientation.x = self.desired_end.orientation.x
         # self.end.orientation.y = self.desired_end.orientation.y
         # self.end.orientation.z = self.desired_end.orientation.z

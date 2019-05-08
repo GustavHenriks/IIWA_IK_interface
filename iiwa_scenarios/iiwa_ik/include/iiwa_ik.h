@@ -209,6 +209,7 @@ class iiwa_ik : public RobotInterface
 	double circle_gain;
 	double lin_gain;
 	double svm_gain;
+	double lin_grad;
 
 	// DS
 	float theta;
@@ -236,6 +237,7 @@ class iiwa_ik : public RobotInterface
 	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt";
 	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model.txt";
 	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model2.txt";
+	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model3.txt";
 	SVMGrad SVM;
 
 	double gamma_dist;
