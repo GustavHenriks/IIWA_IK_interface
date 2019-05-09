@@ -39,7 +39,7 @@
 
 const int KUKA_DOF = 7;			// The number of robotic arm's joints!
 int IK_CONSTRAINTS = 9;			// Inverse kinematic constrains, 3 position, 3 orientation around Z axis and 3 for orientation around Y axis.
-double Gain_velocity_limit = 2; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
+double Gain_velocity_limit = 3; // Velocity constrains of the robot is multiplied to Gain_velocity_limit.
 enum ENUM_AXIS
 {
 	AXIS_X = 0,
@@ -61,7 +61,7 @@ enum ENUM_COMMAND
 	COMMAND_NONE
 };
 double dt = 0.002;			   // Time sample
-double Gain_Orientation = 0.5; // 1.4 Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
+double Gain_Orientation = 0.3; // 1.4 Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
 
 using namespace std;
 using namespace Eigen;
@@ -94,6 +94,7 @@ class iiwa_ik : public RobotInterface
 	MathLib::Matrix lJacobianDirZ;
 	MathLib::Matrix lJacobianDirY;
 	Vector mJointDesVel;
+	Vector mJointDesVelFiltered;
 	Vector mJointVelLimitsDn;
 	Vector mJointVelLimitsUp;
 	void chatterCallback_position(const sensor_msgs::JointState &msg); // Callback for the position of the joints.
@@ -205,13 +206,20 @@ class iiwa_ik : public RobotInterface
 	Vector3d last_circle;
 	Vector3d circle_normal;
 	Vector3d last_end;
+	Vector3d lin_grad3D;
 	Quaterniond q;
+
+	double disturbance = 0.005;
+	double input;
+
+
 	double circle_gain;
 	double lin_gain;
 	double svm_gain;
 	double lin_grad;
 	bool svm_activate;
-	
+	bool svm_activate_neg;
+
 	// DS
 	float theta;
 	double r;

@@ -352,9 +352,9 @@ class convert_frame():
         self.base_received = True
 
     def chatterCallback_Shoulder(self, data):
-        self.Shoulder.position.x = data.pose.position.x+0.15
+        self.Shoulder.position.x = data.pose.position.x+0.155
         self.Shoulder.position.y = data.pose.position.y
-        self.Shoulder.position.z = data.pose.position.z-0.03
+        self.Shoulder.position.z = data.pose.position.z-0.03-0.005
         self.Shoulder.orientation.x = data.pose.orientation.x
         self.Shoulder.orientation.y = data.pose.orientation.y
         self.Shoulder.orientation.z = data.pose.orientation.z
@@ -362,9 +362,9 @@ class convert_frame():
         self.Shoulder_received = True
 
     def chatterCallback_Hand(self, data):
-        self.Hand.position.x = data.pose.position.x+0.03+0.15
+        self.Hand.position.x = data.pose.position.x+0.01+0.155
         self.Hand.position.y = data.pose.position.y
-        self.Hand.position.z = data.pose.position.z
+        self.Hand.position.z = data.pose.position.z-0.005
         self.Hand.orientation.x = data.pose.orientation.x
         self.Hand.orientation.y = data.pose.orientation.y
         self.Hand.orientation.z = data.pose.orientation.z

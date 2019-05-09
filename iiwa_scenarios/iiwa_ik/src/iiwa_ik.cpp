@@ -79,7 +79,7 @@ void iiwa_ik::chatterCallback_base(const geometry_msgs::PoseStamped &msg)
 void iiwa_ik::chatterCallback_shoulder(const geometry_msgs::PoseStamped &msg)
 {
 	Shoulder_pos(0) = -msg.pose.position.x - base_pos(0);
-	Shoulder_pos(1) = -msg.pose.position.y - base_pos(1)+0.2;
+	Shoulder_pos(1) = -msg.pose.position.y - base_pos(1) + 0.18;
 	Shoulder_pos(2) = msg.pose.position.z - base_pos(2);
 	// cout << "Shoulder" << Shoulder_pos << endl;
 }
@@ -251,9 +251,9 @@ void iiwa_ik::Parameter_initialization()
 		SVM.loadModel(modelpath);
 		Desired_End_orientation.resize(4);
 		circle_normal << 0, 0, 1;
-		circle_gain = 0.1;
-		lin_gain = 0.001;
-		svm_gain = 0.5;
+		circle_gain = 0.2; //0.1 0.2 (small)
+		lin_gain = 0.001;  //0.001 0.0 (small)
+		svm_gain = 0.15;   //0.5 0.15 (small)
 	}
 	reset_the_bool();
 }
@@ -369,9 +369,9 @@ RobotInterface::Status iiwa_ik::RobotInit()
 	lJointWeight(0) = 1;
 	lJointWeight(1) = 1;
 	lJointWeight(2) = 1;
-	lJointWeight(3) = 1;
+	lJointWeight(3) = 0.5;
 	lJointWeight(4) = 1.0;
-	lJointWeight(5) = 1.0;
+	lJointWeight(5) = 0.5;
 	lJointWeight(6) = 1.0;
 
 	mIKSolver.SetDofsWeights(lJointWeight);
@@ -382,6 +382,7 @@ RobotInterface::Status iiwa_ik::RobotInit()
 	lJacobianDirZ.Resize(3, KUKA_DOF);
 	lJacobianDirY.Resize(3, KUKA_DOF);
 	mJointDesVel.Resize(KUKA_DOF);
+	mJointDesVelFiltered.Resize(KUKA_DOF);
 	mJointVelLimitsUp.Resize(KUKA_DOF);
 	mJointVelLimitsDn.Resize(KUKA_DOF);
 
@@ -572,23 +573,35 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			pub_gamma.publish(gamma_pose);
 			// SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 1000;
 			cout << "gamma_dist" << gamma_dist << endl;
-			if (gamma_dist > 0.1-0.02 | svm_activate) //Lin 0.03+0.095+0.05
+			if (gamma_dist > 0.155 | svm_activate) //Lin 0.03+0.095+0.05
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 				Desired_EndPos_tmp = EndPos_conv - SVM_out;
-				svm_activate=true;
-				if (gamma_dist<0.08-0.01){
-					svm_activate=false;
+				svm_activate = true;
+				if (gamma_dist < 0.155)
+				{
+					svm_activate = false;
 				}
 			}
-			else {
-				
-				svm_activate=false;
-			}
-			if (gamma_dist < 0.04-0.2) //Lin 0.03+0.095+0.05
+			else
 			{
-				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
+
+				svm_activate = false;
+			}
+			svm_activate_neg = false;
+			if (gamma_dist < 0.136 | svm_activate_neg) //Lin 0.03+0.095+0.05
+			{
+				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 200;
 				Desired_EndPos_tmp = EndPos_conv + SVM_out;
+				svm_activate_neg = true;
+				if (gamma_dist > 0.136)
+				{
+					svm_activate_neg = false;
+				}
+			}
+			else
+			{
+				svm_activate_neg = false;
 			}
 			Desired_EndPos_tmp_pose.position.x = Desired_EndPos_tmp(0);
 			Desired_EndPos_tmp_pose.position.y = Desired_EndPos_tmp(1);
@@ -603,62 +616,18 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			cout << "Curr " << Desired_EndPos[0] << endl;
 			cout << "Next " << Desired_EndPos_conv[0] << endl;
 			cout << "Gamma " << SVM.calculateGamma(EndPos_conv) << endl;
-			if (gamma_dist > 0.10-0.02 | svm_activate==true) //Lin 0.03+0.095+0.05
+			if (gamma_dist > 0.155| svm_activate == true) //Lin 0.03+0.095+0.05
 			{
 				cout << "asdfasdfasdfasdf" << endl;
 				last_end(0) = EndPos(0);
 				last_end(1) = EndPos(1);
 				last_end(2) = EndPos(2);
+				last_circle = last_end;
 			}
-			if (gamma_dist < 0.1-0.02 && gamma_dist > 0.04-0.02 && svm_activate==false) //Lin 0.03+0.095+0.05 0.01+0.095+0.05
+			if (gamma_dist < 0.155 && gamma_dist > 0.136 && svm_activate == false && svm_activate_neg == false) //Lin 0.03+0.095+0.05 0.01+0.095+0.05
 			{
-				// if (lin_DS) //Use for linear DS only
-				// {
-				// 	if (target_hand)
-				// 	{
-				// 		target = Hand_pos;
-				// 	}
-				// 	else
-				// 	{
-				// 		target = Shoulder_pos;
-				// 	}
-				// 	lin_grad = (target(1) - EndPos(1)) / 100;
-				// 	if (lin_grad > 0.001)
-				// 	{
-
-				// 		lin_grad = 0.001;
-				// 	}
-				// 	if (lin_grad <-0.001)
-				// 	{
-				// 		lin_grad = -0.001;
-				// 	}
-				// 	cout<<"lin_grad"<<lin_grad<<endl;
-				// 	Desired_EndPos(0) = Desired_EndPos(0);
-				// 	Desired_EndPos(1) = EndPos(1) + lin_grad;
-				// 	Desired_EndPos(2) = Desired_EndPos(2);
-				// 	cout << "EndPos" << EndPos << endl;
-				// 	cout << "Desired_EndPos " << Desired_EndPos << endl;
-				// 	cout << "target " << target << endl;
-				// 	rotation_temp.x() = Desired_End_orientation(0);
-				// 	rotation_temp.y() = Desired_End_orientation(1);
-				// 	rotation_temp.z() = Desired_End_orientation(2);
-				// 	rotation_temp.w() = Desired_End_orientation(3);
-				// 	rot_mat_temp = rotation_temp.toRotationMatrix();
-				// 	Desired_EndDirY(0) = rot_mat_temp(0, 1);
-				// 	Desired_EndDirZ(0) = rot_mat_temp(0, 2);
-				// 	Desired_EndDirY(1) = rot_mat_temp(1, 1);
-				// 	Desired_EndDirZ(1) = rot_mat_temp(1, 2);
-				// 	Desired_EndDirY(2) = rot_mat_temp(2, 1);
-				// 	Desired_EndDirZ(2) = rot_mat_temp(2, 2);
-
-				// 	if (abs(EndPos(1) - target(1)) < 0.10) //Hand +0.15
-				// 	{
-				// 		target_hand = (1 - target_hand);
-				// 	}
-				// }
-				if (lin_DS) // Attempt for circular DS
+				if (lin_DS) //Use for linear DS only
 				{
-					test = false;
 					if (target_hand)
 					{
 						target = Hand_pos;
@@ -667,54 +636,22 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 					{
 						target = Shoulder_pos;
 					}
-					do
+					lin_grad = (target(1) - EndPos(1)) / 5;
+					if (lin_grad > 0.002)
 					{
-						SVM_out2 = SVM.calculateGammaDerivative(EndPos_conv) / 500;
-						Desired_EndPos_tmp = EndPos_conv + SVM_out2;
-						SVM_vec = Desired_EndPos_tmp - EndPos_conv;
-					} while (SVM.calculateGamma(Desired_EndPos_tmp) < 0.04-0.02);
-					Desired_EndPos_lin(1) = EndPos(1) + (target(1) - EndPos(1)) / 500; // Updates only in Y direction
-					Desired_EndPos_lin(0) = Desired_EndPos(0);
-					Desired_EndPos_lin(2) = Desired_EndPos(2);
-					// cout << "circle_normal" << circle_normal << endl;
-					// cout << "SVM_out" << SVM_out << endl;
-					q.setFromTwoVectors(circle_normal, SVM_out).normalized();
-					// cout << "q1 " << q.x() << q.y() << q.z() << q.w() << endl;
-					circle_rot = q.normalized().toRotationMatrix();
-					// cout << "circle_rot" << circle_rot << endl;
-					q.setFromTwoVectors(SVM_out, circle_normal);
-					// cout << "q2" << q2 << endl;
-					circle_rot_inv = q.normalized().toRotationMatrix();
-					// circle_rot_inv = circle_rot.inverse();
-					// cout << "circle_rot_in" << circle_rot_inv << endl;
-					// last_end = Desired_EndPos_lin;
-					circle_tmp = EndPos - last_end;
-					cout << "EndPos " << EndPos << " last_end " << last_end << endl;
-					// cout << "circle_tmp" << circle_tmp << endl;
-					circle_2d = circle_rot_inv * circle_tmp.matrix();
-					// circle_2d = circle_tmp;
-					cout << "circle_2d " << circle_2d << endl;
-					circle_2d_2(0) = circle_2d(0);
-					circle_2d_2(1) = circle_2d(1);
-					// cout << "circle_2d_2" << circle_2d_2 << endl;
-					new_ds = ds(circle_2d_2, 0.03);
-					// cout << "new_ds" << new_ds << endl;
-					new_ds_3d << new_ds, 0;
-					// cout << "new_ds_3d" << new_ds_3d << endl;
-					circle_grad = circle_rot * new_ds_3d.matrix();
-					// circle_grad = new_ds_3d;
-					cout << "circle_grad" << circle_grad << endl;
-					Desired_EndPos(0) = EndPos(0) + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
-					Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) * lin_gain + circle_grad(1) * circle_gain + SVM_vec(1) * svm_gain;
-					// Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) / 500;
-					Desired_EndPos(2) = EndPos(2) + circle_grad(2) * circle_gain + SVM_vec(2) * svm_gain;
-					// Desired_EndPos(2) = Desired_EndPos(2);
-					cout << "Lin_ds" << (target(0) - EndPos(0)) * lin_gain << (target(1) - EndPos(1)) * lin_gain << (target(2) - EndPos(2)) * lin_gain << endl;
-					cout << "Circle_ds" << circle_grad(0) * circle_gain << circle_grad(1) * circle_gain << circle_grad(2) * circle_gain << endl;
-					cout << "SVM" << SVM_vec(0) * svm_gain << SVM_vec(1) * svm_gain << SVM_vec(2) * svm_gain << endl;
-					last_circle(0) = EndPos(0) + circle_grad(0) * circle_gain;
-					last_circle(1) = EndPos(1) + circle_grad(1) * circle_gain;
-					last_circle(2) = EndPos(2) + circle_grad(2) * circle_gain;
+
+						lin_grad = 0.002;
+					}
+					if (lin_grad < -0.001)
+					{
+						lin_grad = -0.001;
+					}
+					cout << "lin_grad" << lin_grad << endl;
+					Desired_EndPos(0) = Desired_EndPos(0);
+					Desired_EndPos(1) = EndPos(1) + lin_grad;
+
+					Desired_EndPos(2) = Desired_EndPos(2);
+					cout << "EndPos" << EndPos << endl;
 					cout << "Desired_EndPos " << Desired_EndPos << endl;
 					cout << "target " << target << endl;
 					rotation_temp.x() = Desired_End_orientation(0);
@@ -729,11 +666,101 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 					Desired_EndDirY(2) = rot_mat_temp(2, 1);
 					Desired_EndDirZ(2) = rot_mat_temp(2, 2);
 
-					if (abs(EndPos(1) - target(1)) < 0.1) //Hand: + 0.15
+					if (abs(EndPos(1) - target(1)) < 0.15) //Hand +0.15
 					{
 						target_hand = (1 - target_hand);
 					}
 				}
+				// if (lin_DS) // Attempt for circular DS
+				// {
+				// 	test = false;
+				// 	if (target_hand)
+				// 	{
+				// 		target = Hand_pos;
+				// 	}
+				// 	else
+				// 	{
+				// 		target = Shoulder_pos;
+				// 	}
+				// 	do
+				// 	{
+				// 		SVM_out2 = SVM.calculateGammaDerivative(EndPos_conv) / 500;
+				// 		Desired_EndPos_tmp = EndPos_conv + SVM_out2;
+				// 		SVM_vec = Desired_EndPos_tmp - EndPos_conv;
+				// 	} while (SVM.calculateGamma(Desired_EndPos_tmp) < 0.04 - 0.02);
+				// 	Desired_EndPos_lin(1) = EndPos(1) + (target(1) - EndPos(1)); // 500 Updates only in Y direction
+				// 	Desired_EndPos_lin(0) = last_end(0);
+				// 	Desired_EndPos_lin(2) = last_end(2);
+				// 	// lin_grad3D<<Desired_EndPos(0),(target(1) - EndPos(1)),Desired_EndPos(2);
+				// 	lin_grad3D<<last_end(0),(target(1) - EndPos(1)),last_end(2);
+				// 	// cout << "lin_grad" << lin_grad3D * lin_gain << endl;
+				// 	// Desired_EndPos_lin(0) = EndPos(0);
+				// 	// Desired_EndPos_lin(2) = EndPos(2);
+				// 	// cout << "circle_normal" << circle_normal << endl;
+				// 	// cout << "SVM_out" << SVM_out << endl;
+				// 	q.setFromTwoVectors(circle_normal, SVM_out).normalized();
+				// 	// cout << "q1 " << q.x() << q.y() << q.z() << q.w() << endl;
+				// 	circle_rot = q.normalized().toRotationMatrix();
+				// 	// cout << "circle_rot" << circle_rot << endl;
+				// 	q.setFromTwoVectors(SVM_out2, circle_normal);
+				// 	// cout << "q2" << q2 << endl;
+				// 	circle_rot_inv = q.normalized().toRotationMatrix();
+				// 	// circle_rot_inv = circle_rot.inverse();
+				// 	// cout << "circle_rot_in" << circle_rot_inv << endl;
+				// 	// last_end = Desired_EndPos_lin;
+				// 	// circle_tmp = EndPos - last_end;
+				// 	circle_tmp = last_circle-EndPos; //Used for small
+				// 	// circle_tmp = last_circle-EndPos-lin_grad3D*0.001;
+				// 	// circle_tmp = last_circle-EndPos+lin_grad3D*0.01;
+				// 	cout << "last_circle " << last_circle << endl;
+				// 	cout << "Next circle " << EndPos+lin_grad3D*0.01 << endl;
+				// 	// cout << "EndPos " << EndPos << " last_end " << last_end << endl;
+				// 	cout << "EndPos " << EndPos << "circle_tmp " << circle_tmp << endl;
+				// 	circle_2d = circle_rot_inv * circle_tmp.matrix();
+				// 	// circle_2d = circle_tmp;
+				// 	cout << "circle_2d " << circle_2d << endl;
+				// 	circle_2d_2(0) = circle_2d(0);
+				// 	circle_2d_2(1) = circle_2d(1);
+				// 	// cout << "circle_2d_2" << circle_2d_2 << endl;
+				// 	new_ds = ds(circle_2d_2, 0.04);
+				// 	// cout << "new_ds" << new_ds << endl;
+				// 	new_ds_3d << new_ds, 0;
+				// 	// cout << "new_ds_3d" << new_ds_3d << endl;
+				// 	circle_grad = circle_rot * new_ds_3d.matrix();
+				// 	// circle_grad = new_ds_3d;
+				// 	cout << "circle_grad" << circle_grad << endl;
+				// 	Desired_EndPos(0) = EndPos(0) + lin_grad3D(0) * lin_gain + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
+				// 	// Desired_EndPos(0) = Desired_EndPos(0) + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
+				// 	Desired_EndPos(1) = EndPos(1) + lin_grad3D(1) * lin_gain + circle_grad(1) * circle_gain + SVM_vec(1) * svm_gain;
+				// 	// Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) / 500;
+				// 	Desired_EndPos(2) = EndPos(2) + lin_grad3D(2) * lin_gain + circle_grad(2) * circle_gain + SVM_vec(2) * svm_gain;
+				// 	// Desired_EndPos(2) = Desired_EndPos(2);
+				// 	cout << "Lin_ds " << lin_grad3D(0) * lin_gain << " " << lin_grad3D(1) * lin_gain << " "  << lin_grad3D(2) * lin_gain << " "  << endl;
+				// 	cout << "Circle_ds " << circle_grad(0) * circle_gain << " "  << circle_grad(1) * circle_gain << " "  << circle_grad(2) * circle_gain << endl;
+				// 	cout << "SVM " << SVM_vec(0) * svm_gain << " "  << SVM_vec(1) * svm_gain << " "  << SVM_vec(2) * svm_gain << endl;
+				// 	last_circle(0) = EndPos(0) + circle_grad(0) * circle_gain;
+				// 	last_circle(1) = EndPos(1) + circle_grad(1) * circle_gain;
+				// 	last_circle(2) = EndPos(2) + circle_grad(2) * circle_gain;
+				// 	// last_circle = EndPos;
+				// 	cout << "Desired_EndPos " << Desired_EndPos << endl;
+				// 	cout << "target " << target << endl;
+				// 	rotation_temp.x() = Desired_End_orientation(0);
+				// 	rotation_temp.y() = Desired_End_orientation(1);
+				// 	rotation_temp.z() = Desired_End_orientation(2);
+				// 	rotation_temp.w() = Desired_End_orientation(3);
+				// 	rot_mat_temp = rotation_temp.toRotationMatrix();
+				// 	Desired_EndDirY(0) = rot_mat_temp(0, 1);
+				// 	Desired_EndDirZ(0) = rot_mat_temp(0, 2);
+				// 	Desired_EndDirY(1) = rot_mat_temp(1, 1);
+				// 	Desired_EndDirZ(1) = rot_mat_temp(1, 2);
+				// 	Desired_EndDirY(2) = rot_mat_temp(2, 1);
+				// 	Desired_EndDirZ(2) = rot_mat_temp(2, 2);
+
+				// 	if (abs(EndPos(1) - target(1)) < 0.1) //Hand: + 0.15
+				// 	{
+				// 		target_hand = (1 - target_hand);
+				// 	}
+				// }
 				else
 				{
 					cout << "In the zone" << endl;
@@ -823,11 +850,31 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 
 		for (int i = 0; i < KUKA_DOF; i++)
 		{
-			Desired_JointVel(i) = mJointDesVel(i);
+			// Desired_JointVel(i) = mJointDesVel(i);
+			
+			// mJointDesVelFiltered(i) = 0.8 * mJointDesVelFiltered(i) + 0.2* mJointDesVel(i);
+			input=mJointDesVel(i);
+			// input=mJointDesVelFiltered(i);
+
+			if (input > 0)
+			{
+				input = input - disturbance;
+				input = (input < 0) ? 0 : input;
+				// input = (input > threshold) ? threshold : input;
+			}
+			else if (input < 0)
+			{
+				input = input + disturbance;
+				input = (input > 0) ? 0 : input;
+				// input = (input < -threshold) ? -threshold : input;
+			}
+			Desired_JointVel(i) = input;
+
 		}
 
-		Desired_JointPos = JointPos + Desired_JointVel * dt * 0.5;
+		// Desired_JointPos = JointPos + Desired_JointVel * dt * 0.5;
 
+		Desired_JointPos = 0.8 * Desired_JointPos + 0.2 * (JointPos + Desired_JointVel * dt * 0.5);
 		break;
 	case PLANNER_JOINT:
 

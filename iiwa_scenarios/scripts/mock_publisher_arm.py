@@ -53,9 +53,9 @@ class mock_publisher():
     def init_shoulder(self):
         self.shoulder = PoseStamped()
         self.desired_shoulder = Pose()
-        self.shoulder.pose.position.x = 0.527764558792-0.20
+        self.shoulder.pose.position.x = 0.527764558792-0.23
         self.shoulder.pose.position.y = -0.618398308754
-        self.shoulder.pose.position.z = 1.22047162056+0.05
+        self.shoulder.pose.position.z = 1.22047162056+0.15
         self.shoulder.pose.orientation.x = -0.664777219296
         self.shoulder.pose.orientation.y = 0.0852108821273
         self.shoulder.pose.orientation.z = -0.130120888352
@@ -66,7 +66,7 @@ class mock_publisher():
         self.desired_hand = Pose()
         self.hand.pose.position.x = 0.467085987329-0.23
         self.hand.pose.position.y = -1.19549167156
-        self.hand.pose.position.z = 1.1878027916+0.1
+        self.hand.pose.position.z = 1.1878027916+0.2
         self.hand.pose.orientation.x = -0.00212644506246
         self.hand.pose.orientation.y = 0.00170458073262
         self.hand.pose.orientation.z = -0.0156762357801
