@@ -12,8 +12,8 @@ class mock_publisher():
     def __init__(self):
         print('test')
         rospy.init_node('mock_publisher', anonymous=True)
-        # self.endPub = rospy.Publisher(
-        #     "/IIWA/Real_E_Pos", Pose, queue_size=3)
+        self.endPub = rospy.Publisher(
+            "/IIWA/Real_E_Pos", Pose, queue_size=3)
         self.shoulderPub = rospy.Publisher(
             "/Shoulder/pose", PoseStamped, queue_size=3)
         self.handPub = rospy.Publisher(
@@ -22,8 +22,8 @@ class mock_publisher():
             "/Robot_base/pose", PoseStamped, queue_size=3)
         self.endSub = rospy.Subscriber(
             "/robot/end/desired_converted", Pose, self.chatterCallback_desiredPos)
-        # self.endSub = rospy.Subscriber(
-        #     "/IIWA/Desired_E_Pos", Pose, self.chatterCallback_desiredPos)
+        self.endSub = rospy.Subscriber(
+            "/IIWA/Desired_E_Pos", Pose, self.chatterCallback_desiredPos)
         self.init_end()
         self.init_hand()
         self.init_shoulder()
@@ -32,12 +32,12 @@ class mock_publisher():
         self.desired_end_received = False
         r = rospy.Rate(300)
         while not rospy.is_shutdown():
-            # self.endPub.publish(self.end)
+            self.endPub.publish(self.end)
             self.basePub.publish(self.base)
             self.shoulderPub.publish(self.shoulder)
             self.handPub.publish(self.hand)
-            # if self.desired_end_received:
-            #     self.update_end()
+            if self.desired_end_received:
+                self.update_end()
             r.sleep()
 
     def init_end(self):

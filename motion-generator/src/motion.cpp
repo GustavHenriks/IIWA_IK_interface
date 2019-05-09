@@ -1,6 +1,8 @@
 #include "motion.h"
-
-void chatterCallback_base(const geometry_msgs::PoseStamped &msg)
+motion::motion()
+{
+}
+void motion::chatterCallback_base(const geometry_msgs::PoseStamped &msg)
 {
 	base_pos(0) = -msg.pose.position.x;
 	base_pos(1) = -msg.pose.position.y;
@@ -8,7 +10,7 @@ void chatterCallback_base(const geometry_msgs::PoseStamped &msg)
 	Base_received = true;
 }
 
-void chatterCallback_hand(const geometry_msgs::PoseStamped &msg)
+void motion::chatterCallback_hand(const geometry_msgs::PoseStamped &msg)
 {
 	Hand_pos(0) = -msg.pose.position.x - base_pos(0);
 	Hand_pos(1) = -msg.pose.position.y - base_pos(1);
@@ -16,7 +18,7 @@ void chatterCallback_hand(const geometry_msgs::PoseStamped &msg)
 	Hand_received = true;
 }
 
-void chatterCallback_end(const geometry_msgs::Pose &msg)
+void motion::chatterCallback_end(const geometry_msgs::Pose &msg)
 {
 	end_pos(0) = msg.position.x;
 	end_pos(1) = msg.position.y;
@@ -28,21 +30,24 @@ void chatterCallback_end(const geometry_msgs::Pose &msg)
 	End_received = true;
 }
 
-void Topic_initialization()
+void motion::Topic_initialization()
 {
-	// ros::NodeHandle n;
-	// ros::Subscriber handsub = n.subscribe("/Hand/pose", 3, chatterCallback_base);
-	// ros::Subscriber basesub = n.subscribe("/Hand/pose", 3, chatterCallback_hand);
+	ros::NodeHandle n;
+	basesub = n.subscribe("/Robot_base/pose", 3, &motion::chatterCallback_base, this);
+	handsub = n.subscribe("/Hand/pose", 3, &motion::chatterCallback_hand, this);
+	endsub = n.subscribe("/IIWA/Real_E_Pos", 3, &motion::chatterCallback_end, this);
+	desiredpub = n.advertise<geometry_msgs::Pose>("/IIWA/Desired_E_Pos", 3);
 }
 
-void Init_parameters()
+void motion::Init_parameters()
 {
 	Hand_received = false;
 	Base_received = false;
 	End_received = false;
+	end_orientation.resize(4);
 }
 
-int main(int argc, char **argv)
+int motion::main(int argc, char **argv)
 {
 
 	ros::init(argc, argv, "motion");
@@ -50,11 +55,8 @@ int main(int argc, char **argv)
 	// ros::Subscriber basesub = n.subscribe("/Hand/pose", 3, chatterCallback_hand);
 	cout << "test" << endl;
 	Init_parameters();
-	ros::NodeHandle n;
-	ros::Subscriber handsub = n.subscribe("/Robot_base/pose", 3, chatterCallback_base);
-	ros::Subscriber basesub = n.subscribe("/Hand/pose", 3, chatterCallback_hand);
-	ros::Subscriber endsub = n.subscribe("/IIWA/Real_E_Pos", 3, chatterCallback_end);
-	ros::Publisher desiredpub = n.advertise<geometry_msgs::Pose>("/IIWA/Desired_E_Pos", 3);
+	Topic_initialization();
+	
 
 	while (Hand_received != true && Base_received != true && End_received != true)
 	{
@@ -80,18 +82,10 @@ int main(int argc, char **argv)
 		desiredpub.publish(desired_pose);
 		ros::spinOnce();
 	}
-	// ros::spin();
-	// %EndTag(SUBSCRIBER)%
-
-	/**
-   * ros::spin() will enter a loop, pumping callbacks.  With this version, all
-   * callbacks will be called from within this thread (the main one).  ros::spin()
-   * will exit when Ctrl-C is pressed, or the node is shutdown by the master.
-   */
-	// %Tag(SPIN)%
-
-	// %EndTag(SPIN)%
 
 	return 0;
 }
-// %EndTag(FULLTEXT)%
+int main(int argc, char **argv){
+	motion m;
+	m.main(argc, argv);
+}

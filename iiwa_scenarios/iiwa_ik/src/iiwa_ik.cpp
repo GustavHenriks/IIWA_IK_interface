@@ -16,13 +16,12 @@
 
 #include "iiwa_ik.h"
 
-bool Garve_comp = false;
+bool Garve_comp = true;
 bool Mod_DS = false;
 bool Mod_DS_3D = false;
-bool SVM_grad = true;
-bool lin_DS = true;
+bool SVM_grad = false;
+bool lin_DS = false;
 bool target_hand = 1;
-bool test = true;
 
 iiwa_ik::iiwa_ik()
 	: RobotInterface()
@@ -410,11 +409,11 @@ RobotInterface::Status iiwa_ik::RobotFree()
 RobotInterface::Status iiwa_ik::RobotStart()
 {
 
-	while (!Position_of_the_robot_recieved) //COMMENT FOR TESTING
-	{
-		cout << "Waiting for the robot's position" << endl;
-		ros::spinOnce();
-	}
+	// while (!Position_of_the_robot_recieved) //COMMENT FOR TESTING
+	// {
+	// 	cout << "Waiting for the robot's position" << endl;
+	// 	ros::spinOnce();
+	// }
 
 	Desired_JointPos = JointPos;
 
@@ -486,8 +485,8 @@ RobotInterface::Status iiwa_ik::RobotUpdate()
 		Desired_JointPos = JointPos;
 		break;
 	case COMMAND_Polish:
-		if (everythingisreceived())
-		// if (!everythingisreceived()) // USED FOR TESTING
+		// if (everythingisreceived())
+		if (!everythingisreceived()) // USED FOR TESTING
 		{
 			Desired_JointPos = JointPos;
 			mSKinematicChain->setJoints(JointPos.data());

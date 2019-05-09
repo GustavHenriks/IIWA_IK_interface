@@ -23,16 +23,33 @@
 #include "eigen3/Eigen/Dense"
 using namespace Eigen;
 using namespace std;
+class motion
+{
+public:
+    motion();
+    int main(int argc, char **argv);
 
-Vector3d Hand_pos;
-Vector3d base_pos;
-Vector3d end_pos;
-VectorXd end_orientation(4);
-Vector3d desired_pos;
-geometry_msgs::Pose desired_pose;
+private:
+    void chatterCallback_base(const geometry_msgs::PoseStamped &msg);
+    void chatterCallback_hand(const geometry_msgs::PoseStamped &msg);
+    void chatterCallback_end(const geometry_msgs::Pose &msg);
+    void Topic_initialization();
+    void Init_parameters();
 
-bool Base_received;
-bool Hand_received;
-bool End_received;
+    ros::Subscriber basesub;
+    ros::Subscriber handsub;
+    ros::Subscriber endsub;
+    ros::Publisher desiredpub;
 
+    Vector3d Hand_pos;
+    Vector3d base_pos;
+    Vector3d end_pos;
+    VectorXd end_orientation;
+    Vector3d desired_pos;
+    geometry_msgs::Pose desired_pose;
+
+    bool Base_received;
+    bool Hand_received;
+    bool End_received;
+};
 #endif
