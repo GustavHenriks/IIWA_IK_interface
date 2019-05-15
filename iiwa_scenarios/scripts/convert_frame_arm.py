@@ -66,6 +66,7 @@ class convert_frame():
         self.up = [0, 0, 1]
         self.desired_end_vec_conv = [0, 0, 0]
         self.rot_mat = np.zeros((4, 4))
+        self.rotation_2 = np.zeros((4, 4))
         self.rotation = np.zeros((3, 3))
         self.dir = [1, 0, 1]
         self.gamma_vec = [0, 0, 0]
@@ -118,6 +119,11 @@ class convert_frame():
         arm_dir = (self.Hand_vec - self.Shoulder_vec) / \
             np.linalg.norm((self.Hand_vec - self.Shoulder_vec))
         self.rotation = self.rot(arm_dir, self.svm_dir)
+        self.rotation_2[0:3,0:3]=self.rotation
+        self.rotation_2[3,3]=1
+        self.rotation = np.dot(tf.transformations.rotation_matrix(45, (0, 1, 0)), self.rotation_2)
+        self.rotation = self.rotation[0:3,0:3]
+
         self.end_vec_conv = np.dot(self.rotation, self.end_vec.transpose())
 
         self.end_conv.position.x = self.end_vec_conv[0]
@@ -189,7 +195,13 @@ class convert_frame():
         arm_dir = (self.Hand_vec - self.Shoulder_vec) / \
             np.linalg.norm((self.Hand_vec - self.Shoulder_vec))
         self.rotation = self.rot(arm_dir, self.svm_dir)
-        self.rotation2 = np.linalg.inv(self.rotation)
+        
+        self.rotation_2[0:3,0:3]=self.rotation
+        self.rotation_2[3,3]=1
+        self.rotation_2 = np.dot(tf.transformations.rotation_matrix(45, (0, 1, 0)), self.rotation_2)
+        self.rotation2 = self.rotation_2[0:3,0:3]
+        
+        self.rotation2 = np.linalg.inv(self.rotation2)
         self.desired_end_vec_conv = np.dot(
             self.rotation2, self.desired_end_vec.transpose())
 
