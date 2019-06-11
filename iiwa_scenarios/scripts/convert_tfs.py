@@ -5,6 +5,7 @@ import math
 import tf
 from geometry_msgs.msg import Pose, PoseStamped, Point32, TransformStamped
 from std_msgs.msg import Header
+from sensor_msgs.msg import PointCloud
 import time
 # from sensor_msgs.msg import PointCloud
 # import geometry_msgs.msg
@@ -22,6 +23,7 @@ class convert_tf():
         br_ee_conv = tf.TransformBroadcaster()
         br_ee_conv_debug = tf.TransformBroadcaster()
         br_robot_base_fixed =  tf.TransformBroadcaster()
+        br_svr_rotated = tf.TransformBroadcaster()
 
         self.desired_end_received = False
         self.Hand_received = False
@@ -36,12 +38,14 @@ class convert_tf():
             "/robot/end/desired", Pose, self.chatterCallback_desiredPos)
         self.RobotPosDesiredConvertedPub = rospy.Publisher(
             "/robot/end/desired_converted", Pose, queue_size=3)
+        self.CloudPub = rospy.Publisher(
+            "/PointCloud/points", PointCloud)
 
         self.end = Pose()
         self.Robot_conv = Pose()
         self.Robot_des = Pose()
         self.desired_end = Pose()
-
+        self.trans_arm =[]
         rate = rospy.Rate(500.0)
         start = time.time()
 
@@ -53,7 +57,7 @@ class convert_tf():
                     '/mocap_hand', '/mocap_shoulder', rospy.Time(0))
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
-
+            self.trans_arm=trans_arm
             p_arm = np.array(
                 [trans_arm[0][0], trans_arm[0][1], trans_arm[0][2]])
 
@@ -103,6 +107,13 @@ class convert_tf():
                     '/robot_base_fixed', '/mocap_svr', rospy.Time(0))
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
+            self.trans_end_svr=trans_end_svr
+            
+            br_svr_rotated.sendTransform(p_arm-[0,0,0.05], tf.transformations.quaternion_multiply(tf.transformations.quaternion_about_axis(-np.pi/15,(1,0,0)),trans_arm[1]), rospy.Time.now(),
+                                 'mocap_svr_rotated', "mocap_hand")
+
+
+
 
             # we have gamma_vec in svr_frame, we need to transform it to the robot base for motion-planning
             # self.gamma_vec=np.array(trans_end_svr[0])*-1
@@ -124,14 +135,14 @@ class convert_tf():
 
                 self.publish_end_conv(np.array(trans_end_svr))
 
-                br_ee_svr.sendTransform(trans_end_svr[0], q_tf, rospy.Time.now(),'e_desired_orientation', "mocap_svr")
+                br_ee_svr.sendTransform(trans_end_svr[0], q_tf, rospy.Time.now(),'e_desired_orientation', "mocap_svr_rotated")
 
                 print(np.linalg.norm(self.desired_end_vec))
                 print(np.linalg.norm(self.qv_mult(trans_end_base[1], self.desired_end_vec)))
                 
                 desired_end_base = trans_end_base[0] + self.qv_mult(trans_end_base[1], self.desired_end_vec)
                 br_ee_conv.sendTransform(desired_end_base, tf.transformations.quaternion_multiply(trans_end_base[1],q_tf), rospy.Time.now(),'e_test', "robot_base_fixed")
-                br_ee_conv_debug.sendTransform(self.desired_end_vec, tf.transformations.quaternion_about_axis(0,(1,0,0)), rospy.Time.now(),'e_debug', "mocap_svr")
+                br_ee_conv_debug.sendTransform(self.desired_end_vec, tf.transformations.quaternion_about_axis(0,(1,0,0)), rospy.Time.now(),'e_debug', "mocap_svr_rotated")
 
             # print(self.desired_end_received)
             # Convert frame from SVR to base of robot
@@ -140,6 +151,8 @@ class convert_tf():
                 # print(desired_end_base)
                 self.publish_end_desired(desired_end_base,tf.transformations.quaternion_multiply(trans_end_base[1],q_tf))
                 # br_ee_conv.sendTransform(desired_end_base, tf.transformations.quaternion_multiply(trans_end_base[1],q_tf), rospy.Time.now(),'e_test2', "robot_base_fixed")
+            self.load_pointcloud()
+            self.pubish_on_point_cloud(self.pointcloud)
             rate.sleep()
 
     def chatterCallback_RobotEnd(self, data):
@@ -191,6 +204,31 @@ class convert_tf():
             tf.transformations.quaternion_multiply(q1, q2),
             tf.transformations.quaternion_conjugate(q1)
         )[:3]*v_norm
+
+    
+    def pubish_on_point_cloud(self, X):
+        pointCloud = PointCloud()
+        header = Header()
+        header.stamp = rospy.Time.now()
+        header.frame_id = 'mocap_svr_rotated'
+        pointCloud.header = header
+        pointCloud.points = []
+        for i in range(len(X)):
+            Point_temp = Point32()
+            # X[i]=self.qv_mult(self.trans_arm[1],X[i])
+            X[i]=X[i]
+            Point_temp.x = X[i][0]
+            Point_temp.y = X[i][1]
+            Point_temp.z = X[i][2]
+            
+            pointCloud.points.append(Point_temp)
+        # print(self.trans_end_svr[0])
+        print(pointCloud)
+        self.CloudPub.publish(pointCloud)
+
+    def load_pointcloud(self):
+        self.pointcloud = np.loadtxt(
+            "/home/gustavhenriks/catkin_ws_ik_test/src/IIWA_IK_interface/iiwa_scenarios/scripts/data/Pointcloud/pointcloud")
 
 
 if __name__ == '__main__':

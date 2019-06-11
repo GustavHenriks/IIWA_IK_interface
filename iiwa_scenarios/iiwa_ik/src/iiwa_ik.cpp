@@ -597,12 +597,12 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			pub_gamma.publish(gamma_pose);
 			// SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 1000;
 			cout << "gamma_dist" << gamma_dist << endl;
-			if (gamma_dist > 0.17 | svm_activate) //Lin 0.03+0.095+0.05
+			if (gamma_dist > 0.22 | svm_activate) //Lin 0.03+0.095+0.05
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 				Desired_EndPos_tmp = EndPos_conv - SVM_out;
 				svm_activate = true;
-				if (gamma_dist < 0.15)
+				if (gamma_dist < 0.20)
 				{
 					svm_activate = false;
 				}
@@ -613,12 +613,12 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 				svm_activate = false;
 			}
 			svm_activate_neg = false;
-			if (gamma_dist < 0.10 | svm_activate_neg) //Lin 0.03+0.095+0.05
+			if (gamma_dist < 0.15 | svm_activate_neg) //Lin 0.03+0.095+0.05
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 200;
 				Desired_EndPos_tmp = EndPos_conv + SVM_out;
 				svm_activate_neg = true;
-				if (gamma_dist > 0.11)
+				if (gamma_dist > 0.17)
 				{
 					svm_activate_neg = false;
 				}
@@ -641,7 +641,7 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			cout << "Curr " << Desired_EndPos[0] << endl;
 			cout << "Next " << Desired_EndPos_conv[0] << endl;
 			cout << "Gamma " << SVM.calculateGamma(EndPos_conv) << endl;
-			if (gamma_dist > 0.17 | svm_activate == true | svm_activate_neg == true) //Lin 0.03+0.095+0.05
+			if (gamma_dist > 0.22 | svm_activate == true | svm_activate_neg == true) //Lin 0.03+0.095+0.05
 			{
 				cout << "Too far from surface" << endl;
 				cout << gamma_vec << endl;
@@ -651,7 +651,7 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 				last_circle = Desired_EndPos;
 				DS_vec = Desired_EndPos;
 			}
-			if (gamma_dist < 0.17 && gamma_dist > 0.1 && svm_activate == false && svm_activate_neg == false) //Lin 0.03+0.095+0.05 0.01+0.095+0.05
+			if (gamma_dist < 0.22 && gamma_dist > 0.15 && svm_activate == false && svm_activate_neg == false) //Lin 0.03+0.095+0.05 0.01+0.095+0.05
 			{
 				if (lin_DS) //Use for linear DS only
 				{
