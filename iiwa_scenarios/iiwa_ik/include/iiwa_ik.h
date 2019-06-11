@@ -61,7 +61,7 @@ enum ENUM_COMMAND
 	COMMAND_NONE
 };
 double dt = 0.002;			   // Time sample
-double Gain_Orientation = 1.0; // 0.3 Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
+double Gain_Orientation = 0.05; // 0.3 Orientation vs position constraint!. It should be more than zero and if it is more than one it works in favour of position and if it is between zero and one it works in favour of orientation.
 
 using namespace std;
 using namespace Eigen;
@@ -193,6 +193,9 @@ class iiwa_ik : public RobotInterface
 	Vector3d Shoulder_pos;
 	Vector3d base_pos;
 	Vector3d target;
+	Vector3d tmp_vec;
+
+
 
 	Vector3d circle_grad;
 	Matrix3d circle_rot;
@@ -223,6 +226,7 @@ class iiwa_ik : public RobotInterface
 	double lin_gain;
 	double svm_gain;
 	double lin_grad;
+	Vector3d lin_grad_vec;
 	bool svm_activate;
 	bool svm_activate_neg;
 	double svm_sign;

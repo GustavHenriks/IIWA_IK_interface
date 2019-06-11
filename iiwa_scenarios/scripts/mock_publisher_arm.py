@@ -12,8 +12,8 @@ class mock_publisher():
     def __init__(self):
         print('test')
         rospy.init_node('mock_publisher', anonymous=True)
-        # self.endPub = rospy.Publisher(
-        #     "/IIWA/Real_E_Pos", Pose, queue_size=3)
+        self.endPub = rospy.Publisher(
+            "/IIWA/Real_E_Pos", Pose, queue_size=3)
         self.shoulderPub = rospy.Publisher(
             "/Shoulder/pose", PoseStamped, queue_size=3)
         self.handPub = rospy.Publisher(
@@ -32,10 +32,10 @@ class mock_publisher():
         self.desired_end_received = False
         r = rospy.Rate(300)
         while not rospy.is_shutdown():
-            # self.endPub.publish(self.end)
-            self.basePub.publish(self.base)
-            self.shoulderPub.publish(self.shoulder)
-            self.handPub.publish(self.hand)
+            self.endPub.publish(self.end)
+            # self.basePub.publish(self.base)
+            # self.shoulderPub.publish(self.shoulder)
+            # self.handPub.publish(self.hand)
             # if self.desired_end_received:
             #     self.update_end()
             r.sleep()
@@ -49,13 +49,17 @@ class mock_publisher():
         self.end.position.x = -0.5
         self.end.position.y = 0.0802183864893
         self.end.position.z = 1.526110662425
+        self.end.orientation.x = -0.664777219296
+        self.end.orientation.y = 0.0852108821273
+        self.end.orientation.z = -0.130120888352
+        self.end.orientation.w = -0.730670273304
 
     def init_shoulder(self):
         self.shoulder = PoseStamped()
         self.desired_shoulder = Pose()
         self.shoulder.pose.position.x = 0.527764558792-0.1
         self.shoulder.pose.position.y = -0.618398308754
-        self.shoulder.pose.position.z = 1.22047162056-0.1+0.4
+        self.shoulder.pose.position.z = 1.22047162056
         self.shoulder.pose.orientation.x = -0.664777219296
         self.shoulder.pose.orientation.y = 0.0852108821273
         self.shoulder.pose.orientation.z = -0.130120888352
@@ -66,7 +70,7 @@ class mock_publisher():
         self.desired_hand = Pose()
         self.hand.pose.position.x = 0.467085987329-0.1
         self.hand.pose.position.y = -1.19549167156
-        self.hand.pose.position.z = 1.1878027916-0.1+0.4
+        self.hand.pose.position.z = 1.1878027916
         self.hand.pose.orientation.x = -0.00212644506246
         self.hand.pose.orientation.y = 0.00170458073262
         self.hand.pose.orientation.z = -0.0156762357801

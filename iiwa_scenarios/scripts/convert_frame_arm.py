@@ -31,6 +31,8 @@ class convert_frame():
         print("Base:", self.base)
         print("Shoulder:", self.Shoulder)
         print("Hand:", self.Hand)
+        print('Arm dir: ', np.array([-self.Hand.position.x,-self.Hand.position.y, self.Hand.position.z])-np.array([-self.Shoulder.position.x,-self.Shoulder.position.y,self.Shoulder.position.z]))
+        print('Rot: ', self.rot(np.array([-self.Hand.position.x,-self.Hand.position.y, self.Hand.position.z])-np.array([-self.Shoulder.position.x,-self.Shoulder.position.y,self.Shoulder.position.z]),self.svm_dir))
         while not rospy.is_shutdown():
             self.convert_pos()
             self.RobotPosConvertedPub.publish(self.end_conv)
@@ -48,6 +50,7 @@ class convert_frame():
                 self.publish_on_tf(self.desired_end, 'desired_end')
                 self.publish_on_tf(self.desired_end_conv, 'desired_end_conv')
             r2.sleep()
+            # print(np.array([-self.Hand.position.x,-self.Hand.position.y, self.Hand.position.z])-np.array([-self.Shoulder.position.x,-self.Shoulder.position.y,self.Shoulder.position.z]))
 
     def init_params(self):
         self.end = Pose()
@@ -121,9 +124,9 @@ class convert_frame():
         self.rotation = self.rot(arm_dir, self.svm_dir)
         self.rotation_2[0:3,0:3]=self.rotation
         self.rotation_2[3,3]=1
-        self.rotation = np.dot(tf.transformations.rotation_matrix(45, (0, 1, 0)), self.rotation_2)
+        # self.rotation = np.dot(tf.transformations.rotation_matrix(np.deg2rad(45), (0, 1, 0)), self.rotation_2)
         self.rotation = self.rotation[0:3,0:3]
-
+        np
         self.end_vec_conv = np.dot(self.rotation, self.end_vec.transpose())
 
         self.end_conv.position.x = self.end_vec_conv[0]
@@ -198,7 +201,7 @@ class convert_frame():
         
         self.rotation_2[0:3,0:3]=self.rotation
         self.rotation_2[3,3]=1
-        self.rotation_2 = np.dot(tf.transformations.rotation_matrix(45, (0, 1, 0)), self.rotation_2)
+        # self.rotation_2 = np.dot(tf.transformations.rotation_matrix(np.deg2rad(45), (0, 1, 0)), self.rotation_2)
         self.rotation2 = self.rotation_2[0:3,0:3]
         
         self.rotation2 = np.linalg.inv(self.rotation2)
@@ -364,9 +367,9 @@ class convert_frame():
         self.base_received = True
 
     def chatterCallback_Shoulder(self, data):
-        self.Shoulder.position.x = data.pose.position.x+0.155
+        self.Shoulder.position.x = data.pose.position.x
         self.Shoulder.position.y = data.pose.position.y
-        self.Shoulder.position.z = data.pose.position.z-0.03-0.005
+        self.Shoulder.position.z = data.pose.position.z
         self.Shoulder.orientation.x = data.pose.orientation.x
         self.Shoulder.orientation.y = data.pose.orientation.y
         self.Shoulder.orientation.z = data.pose.orientation.z
@@ -374,9 +377,9 @@ class convert_frame():
         self.Shoulder_received = True
 
     def chatterCallback_Hand(self, data):
-        self.Hand.position.x = data.pose.position.x+0.01+0.155
+        self.Hand.position.x = data.pose.position.x
         self.Hand.position.y = data.pose.position.y
-        self.Hand.position.z = data.pose.position.z-0.005
+        self.Hand.position.z = data.pose.position.z
         self.Hand.orientation.x = data.pose.orientation.x
         self.Hand.orientation.y = data.pose.orientation.y
         self.Hand.orientation.z = data.pose.orientation.z

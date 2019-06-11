@@ -16,11 +16,11 @@
 
 #include "iiwa_ik.h"
 
-bool Garve_comp = true;
+bool Garve_comp = false;
 bool Mod_DS = false;
 bool Mod_DS_3D = false;
-bool SVM_grad = false;
-bool lin_DS = false;
+bool SVM_grad = true;
+bool lin_DS = true;
 bool target_hand = 1;
 
 iiwa_ik::iiwa_ik()
@@ -127,7 +127,7 @@ void iiwa_ik::ds(Vector2d x, double r_value)
 	// cout << "x_dot" << x_dot << endl;
 	v(0) = x_dot;
 	v(1) = y_dot;
-	new_ds=v;
+	new_ds = v;
 }
 void iiwa_ik::Send_Postion_To_Robot(VectorXd Position)
 {
@@ -210,15 +210,21 @@ void iiwa_ik::Parameter_initialization()
 	// cJob(6) = -0.820;
 
 	// SVM Job
-	cJob(0) = -15.0 * PI / 180;
-	cJob(1) = 5 * PI / 180;
-	cJob(2) = 0.0;
-	cJob(3) = -45.0 * PI / 180;
-	;
-	cJob(4) = 0.00;
-	cJob(5) = 90.0 * PI / 180;
-	;
-	cJob(6) = 0.0;
+	// cJob(0) = -15.0 * PI / 180;
+	// cJob(1) = 5 * PI / 180;
+	// cJob(2) = 0.0;
+	// cJob(3) = -45.0 * PI / 180;
+	// cJob(4) = 0.00;
+	// cJob(5) = 90.0 * PI / 180;
+	// cJob(6) = 0.0;
+
+	cJob(0) = -1.0466773637532726;
+	cJob(1) = 0.8984651908478877;
+	cJob(2) = 1.66122111083375;
+	cJob(3) = -1.671668386750558;
+	cJob(4) = -0.9563753743412879;
+	cJob(5) = 1.033237387257867;
+	cJob(6) = 0.5312504435741207;
 	char cwd[PATH_MAX];
 	if (getcwd(cwd, sizeof(cwd)) != NULL)
 	{
@@ -259,7 +265,7 @@ void iiwa_ik::Parameter_initialization()
 		Desired_End_orientation.resize(4);
 		circle_normal << 0, 0, 1;
 		circle_gain = 0.6; //0.1 0.2 (small)
-		lin_gain = 0.0001;   //0.001 0.0 (small)
+		lin_gain = 0.0001; //0.001 0.0 (small)
 		svm_gain = 0.7;	//0.5 0.15 (small)
 		theta_value = 0.1;
 	}
@@ -423,7 +429,7 @@ RobotInterface::Status iiwa_ik::RobotStart()
 		cout << "Waiting for the robot's position" << endl;
 		ros::spinOnce();
 	}
-	
+
 	// If joint values are filtered
 	// i=0;
 	// ros::Rate rate(100);
@@ -591,12 +597,12 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			pub_gamma.publish(gamma_pose);
 			// SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 1000;
 			cout << "gamma_dist" << gamma_dist << endl;
-			if (gamma_dist > 0.255 | svm_activate) //Lin 0.03+0.095+0.05
+			if (gamma_dist > 0.17 | svm_activate) //Lin 0.03+0.095+0.05
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 500;
 				Desired_EndPos_tmp = EndPos_conv - SVM_out;
 				svm_activate = true;
-				if (gamma_dist < 0.20)
+				if (gamma_dist < 0.15)
 				{
 					svm_activate = false;
 				}
@@ -607,12 +613,12 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 				svm_activate = false;
 			}
 			svm_activate_neg = false;
-			if (gamma_dist < 0.136 - 0.2 | svm_activate_neg) //Lin 0.03+0.095+0.05
+			if (gamma_dist < 0.10 | svm_activate_neg) //Lin 0.03+0.095+0.05
 			{
 				SVM_out = SVM.calculateGammaDerivative(EndPos_conv) / 200;
 				Desired_EndPos_tmp = EndPos_conv + SVM_out;
 				svm_activate_neg = true;
-				if (gamma_dist > 0.14 - 0.2)
+				if (gamma_dist > 0.11)
 				{
 					svm_activate_neg = false;
 				}
@@ -626,167 +632,78 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			Desired_EndPos_tmp_pose.position.z = Desired_EndPos_tmp(2);
 
 			pub_end_of_robot_converted.publish(Desired_EndPos_tmp_pose);
+			cout << "waiting for desired end converted " << endl;
 			while (!Position_of_the_desired_converted_end)
 			{
-				ros::spinOnce();
+				ros::spinOnce(); 
 			}
 			Position_of_the_desired_converted_end = false;
 			cout << "Curr " << Desired_EndPos[0] << endl;
 			cout << "Next " << Desired_EndPos_conv[0] << endl;
 			cout << "Gamma " << SVM.calculateGamma(EndPos_conv) << endl;
-			if (gamma_dist > 0.255 | svm_activate == true | svm_activate_neg == true) //Lin 0.03+0.095+0.05
+			if (gamma_dist > 0.17 | svm_activate == true | svm_activate_neg == true) //Lin 0.03+0.095+0.05
 			{
-				cout << "asdfasdfasdfasdf" << endl;
+				cout << "Too far from surface" << endl;
+				cout << gamma_vec << endl;
 				last_end(0) = EndPos(0);
 				last_end(1) = EndPos(1);
 				last_end(2) = EndPos(2);
 				last_circle = Desired_EndPos;
 				DS_vec = Desired_EndPos;
 			}
-			if (gamma_dist < 0.255 && gamma_dist > 0.136 - 0.2 && svm_activate == false && svm_activate_neg == false) //Lin 0.03+0.095+0.05 0.01+0.095+0.05
+			if (gamma_dist < 0.17 && gamma_dist > 0.1 && svm_activate == false && svm_activate_neg == false) //Lin 0.03+0.095+0.05 0.01+0.095+0.05
 			{
-				// 	if (lin_DS) //Use for linear DS only
-				// 	{
-				// 		if (target_hand)
-				// 		{
-				// 			target = Hand_pos;
-				// 		}
-				// 		else
-				// 		{
-				// 			target = Shoulder_pos;
-				// 		}
-				// 		lin_grad = (target(1) - EndPos(1)) / 5;
-				// 		if (lin_grad > 0.002)
-				// 		{
-
-				// 			lin_grad = 0.002;
-				// 		}
-				// 		if (lin_grad < -0.001)
-				// 		{
-				// 			lin_grad = -0.001;
-				// 		}
-				// 		cout << "lin_grad" << lin_grad << endl;
-				// 		Desired_EndPos(0) = Desired_EndPos(0);
-				// 		Desired_EndPos(1) = EndPos(1) + lin_grad;
-
-				// 		Desired_EndPos(2) = Desired_EndPos(2);
-				// 		cout << "EndPos" << EndPos << endl;
-				// 		cout << "Desired_EndPos " << Desired_EndPos << endl;
-				// 		cout << "target " << target << endl;
-				// 		rotation_temp.x() = Desired_End_orientation(0);
-				// 		rotation_temp.y() = Desired_End_orientation(1);
-				// 		rotation_temp.z() = Desired_End_orientation(2);
-				// 		rotation_temp.w() = Desired_End_orientation(3);
-				// 		rot_mat_temp = rotation_temp.toRotationMatrix();
-				// 		Desired_EndDirY(0) = rot_mat_temp(0, 1);
-				// 		Desired_EndDirZ(0) = rot_mat_temp(0, 2);
-				// 		Desired_EndDirY(1) = rot_mat_temp(1, 1);
-				// 		Desired_EndDirZ(1) = rot_mat_temp(1, 2);
-				// 		Desired_EndDirY(2) = rot_mat_temp(2, 1);
-				// 		Desired_EndDirZ(2) = rot_mat_temp(2, 2);
-
-				// 		if (abs(EndPos(1) - target(1)) < 0.15) //Hand +0.15
-				// 		{
-				// 			target_hand = (1 - target_hand);
-				// 		}
-				// 	}
-				if (lin_DS) // Attempt for circular DS
+				if (lin_DS) //Use for linear DS only
 				{
 					if (target_hand)
 					{
 						target = Hand_pos;
+						tmp_vec<<0,0,0.00; //0.05 300, 
+						lin_grad_vec = Hand_pos-Shoulder_pos+tmp_vec;
 					}
 					else
 					{
-						target = Shoulder_pos;
+						tmp_vec<<0,0,0.00; //0.05 300
+						target = Shoulder_pos; 	
+						lin_grad_vec = Shoulder_pos-Hand_pos+tmp_vec;
 					}
-					EndPos_conv_svm = EndPos_conv;
-					SVM_out2 = SVM.calculateGammaDerivative(EndPos_conv_svm) / 500;
-					if (abs(gamma_dist - 0.14) > 0.005)
-					{
-						svm_sign = (gamma_dist > 0.14) - (gamma_dist < 0.14);
-						do
-						{
-							Desired_EndPos_tmp = EndPos_conv_svm - SVM_out2 * svm_sign;
-							SVM_vec = Desired_EndPos_tmp - EndPos_conv;
-							EndPos_conv_svm = Desired_EndPos_tmp;
-						} while (abs(SVM.calculateGamma(Desired_EndPos_tmp) - 0.14) > 0.005);
-					}
-					else {
-						SVM_vec <<0, 0, 0;
-					}
-					lin_grad3D<<(Desired_EndPos(0)-EndPos(0)),(target(1) - EndPos(1)),(Desired_EndPos(2)-EndPos(2));
-					// lin_grad3D<<0,(target(1) - EndPos(1)),0;
-					// lin_grad3D << last_end(0)-EndPos(0), (target(1) - EndPos(1)), last_end(2)-EndPos(2);
-					q.setFromTwoVectors(circle_normal, SVM_out2);
-					// cout << "q1 " << q.x() << q.y() << q.z() << q.w() << endl;
-					circle_rot = q.normalized().toRotationMatrix();
-					// cout << "circle_rot" << circle_rot << endl;
-					q.setFromTwoVectors(SVM_out2, circle_normal);
-					// cout << "q2" << q2 << endl;
-					circle_rot_inv = q.normalized().toRotationMatrix();
-					// circle_rot_inv = circle_rot.inverse();
-					// cout << "circle_rot_in" << circle_rot_inv << endl;
-					// last_end = Desired_EndPos_lin;
-					// circle_tmp = EndPos - last_end;
-					circle_tmp = last_circle-DS_vec; //Used for small
-					// circle_tmp = last_circle-EndPos-lin_grad3D*0.001;
-					// circle_tmp = last_circle-EndPos+lin_grad3D*0.01;
-					cout << "last_circle " << last_circle << endl;
-					// cout << "Next circle " << EndPos + lin_grad3D * 0.01 << endl;
-					// cout << "EndPos " << EndPos << " last_end " << last_end << endl;
-					cout << "EndPos " << EndPos << "circle_tmp " << circle_tmp << endl;
-					circle_2d = circle_rot_inv * circle_tmp.matrix();
-					// circle_2d = circle_tmp;
-					cout << "circle_2d " << circle_2d << endl;
-					circle_2d_2(0) = circle_2d(0);
-					circle_2d_2(1) = circle_2d(1);
-					// cout << "circle_2d_2" << circle_2d_2 << endl;
-					ds(circle_2d_2, 0.04); // Outputs: new_ds, theta and r.
-					// cout << "new_ds" << new_ds << endl;
-					new_ds_3d << new_ds, 0;
-					cout << "new_ds_3d" << new_ds_3d << endl;
-					circle_grad = circle_rot * new_ds_3d.matrix();
-					// circle_grad = new_ds_3d;
-					// cout << "circle_grad" << circle_grad << endl;
-					// Desired_EndPos(0) = EndPos(0) + lin_grad3D(0) * lin_gain + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
-					// Desired_EndPos(0) = Desired_EndPos(0) + circle_grad(0) * circle_gain;
-					// Desired_EndPos(0) = EndPos(0) + circle_grad(0) * circle_gain; // Works for TD circle
+
+					///////1D linear line/////////
+					// lin_grad = (target(1) - EndPos(1)) / 5;
+					// if (lin_grad > 0.002)
+					// {
+
+					// 	lin_grad = 0.002;
+					// }
+					// if (lin_grad < -0.001)
+					// {
+					// 	lin_grad = -0.001;
+					// }
+
+					// cout << "lin_grad" << lin_grad << endl;
 					// Desired_EndPos(0) = Desired_EndPos(0);
-					// Desired_EndPos(0) = Desired_EndPos(0) + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
-					// Desired_EndPos(1) = EndPos(1) + lin_grad3D(1) * lin_gain + circle_grad(1) * circle_gain + SVM_vec(1) * svm_gain;
-					// Desired_EndPos(1) = Desired_EndPos(1) + circle_grad(1) * circle_gain; // Works for TD circle
-					// Desired_EndPos(1) = EndPos(1) + circle_grad(1) * circle_gain;
-					// Desired_EndPos(1) = Desired_EndPos(1);  // Works for TD circle
-					// Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) / 500;
-					// Desired_EndPos(2) = EndPos(2) + lin_grad3D(2) * lin_gain + circle_grad(2) * circle_gain + SVM_vec(2) * svm_gain;
+					// Desired_EndPos(1) = EndPos(1) + lin_grad;
+
 					// Desired_EndPos(2) = Desired_EndPos(2);
-					Desired_EndPos = EndPos + circle_grad * circle_gain + SVM_vec * svm_gain; //Creates TD circles
-					// Desired_EndPos = EndPos + circle_grad * circle_gain + lin_grad*lin_gain + SVM_vec * svm_gain;
 
-					cout << "Lin_ds " << lin_grad3D(0) * lin_gain << " " << lin_grad3D(1) * lin_gain << " " << lin_grad3D(2) * lin_gain << " " << endl;
-					cout << "Circle_ds " << circle_grad(0) * circle_gain << " " << circle_grad(1) * circle_gain << " " << circle_grad(2) * circle_gain << endl;
-					cout << "SVM " << SVM_vec(0) * svm_gain << " " << SVM_vec(1) * svm_gain << " " << SVM_vec(2) * svm_gain << endl;
-					last_circle(0) = EndPos(0) + circle_grad(0) * circle_gain;
-					last_circle(1) = EndPos(1) + circle_grad(1) * circle_gain;
-					last_circle(2) = EndPos(2) + circle_grad(2) * circle_gain;
-				    // lambda = (x(2,end)-r.*sin(theta)) /v_circle(2);
-				    //  if(lambda <0 ),lambda = 0;end
-     				// if(lambda > 5*dt), lambda = 5*dt;end
-     				// x_center(1,end+1) = x(1,end)-r.*cos(theta)- v_circle(1)*lambda;
-					
-					// last_circle=Desired_EndPos + circle_grad*circle_gain;
-					// DS_vec=EndPos-circle_grad*circle_gain+lin_grad3D*lin_gain;
-					DS_vec=DS_vec + lin_grad3D*lin_gain; //Creates TD circles
-					cout << "DS " << DS_vec << endl;
-					// DS_vec=DS_vec;
-					// last_circle(0) = Desired_EndPos(0) + circle_grad(0) * circle_gain;
-					// last_circle(1) = Desired_EndPos(1) + circle_grad(1) * circle_gain;
-					// last_circle(2) = Desired_EndPos(2);
+					/////////3D linear line///////
+					// lin_grad_vec = (target-0.255/gamma_vec.norm()*gamma_vec - EndPos) / 5;
+					if (lin_grad_vec.norm() > 0.01)
+					{
 
-					// last_circle = EndPos;
+						lin_grad_vec = (0.01 / lin_grad_vec.norm()) * lin_grad_vec;
+					}
+
+					cout << "lin_grad" << lin_grad_vec << endl;
+					Desired_EndPos = EndPos + lin_grad_vec; 
+					// Desired_EndPos = last_circle;
+					/////////////////////////////
+
+					cout << "EndPos" << EndPos << endl;
 					cout << "Desired_EndPos " << Desired_EndPos << endl;
-					cout << "target " << target << endl;
+					cout << "target " << target<< endl;
+					cout << "EndOrientation" << Desired_End_orientation << endl;
+
 					rotation_temp.x() = Desired_End_orientation(0);
 					rotation_temp.y() = Desired_End_orientation(1);
 					rotation_temp.z() = Desired_End_orientation(2);
@@ -799,11 +716,126 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 					Desired_EndDirY(2) = rot_mat_temp(2, 1);
 					Desired_EndDirZ(2) = rot_mat_temp(2, 2);
 
-					if (abs(EndPos(1) - target(1)) < 0.1 | abs(DS_vec(1) - target(1)) < 0.1 ) //Hand: + 0.15
+					if (abs(EndPos(1) - target(1)) < 0.15) //Hand +0.15
 					{
 						target_hand = (1 - target_hand);
 					}
 				}
+				// if (lin_DS) // Attempt for circular DS
+				// {
+				// 	if (target_hand)
+				// 	{
+				// 		target = Hand_pos;
+				// 	}
+				// 	else
+				// 	{
+				// 		target = Shoulder_pos;
+				// 	}
+				// 	EndPos_conv_svm = EndPos_conv;
+				// 	SVM_out2 = SVM.calculateGammaDerivative(EndPos_conv_svm) / 500;
+				// 	if (abs(gamma_dist - 0.14) > 0.005)
+				// 	{
+				// 		svm_sign = (gamma_dist > 0.14) - (gamma_dist < 0.14);
+				// 		do
+				// 		{
+				// 			Desired_EndPos_tmp = EndPos_conv_svm - SVM_out2 * svm_sign;
+				// 			SVM_vec = Desired_EndPos_tmp - EndPos_conv;
+				// 			EndPos_conv_svm = Desired_EndPos_tmp;
+				// 		} while (abs(SVM.calculateGamma(Desired_EndPos_tmp) - 0.14) > 0.005);
+				// 	}
+				// 	else
+				// 	{
+				// 		SVM_vec << 0, 0, 0;
+				// 	}
+				// 	lin_grad3D << (Desired_EndPos(0) - EndPos(0)), (target(1) - EndPos(1)), (Desired_EndPos(2) - EndPos(2));
+				// 	// lin_grad3D<<0,(target(1) - EndPos(1)),0;
+				// 	// lin_grad3D << last_end(0)-EndPos(0), (target(1) - EndPos(1)), last_end(2)-EndPos(2);
+				// 	q.setFromTwoVectors(circle_normal, SVM_out2);
+				// 	// cout << "q1 " << q.x() << q.y() << q.z() << q.w() << endl;
+				// 	circle_rot = q.normalized().toRotationMatrix();
+				// 	// cout << "circle_rot" << circle_rot << endl;
+				// 	q.setFromTwoVectors(SVM_out2, circle_normal);
+				// 	// cout << "q2" << q2 << endl;
+				// 	circle_rot_inv = q.normalized().toRotationMatrix();
+				// 	// circle_rot_inv = circle_rot.inverse();
+				// 	// cout << "circle_rot_in" << circle_rot_inv << endl;
+				// 	// last_end = Desired_EndPos_lin;
+				// 	// circle_tmp = EndPos - last_end;
+				// 	circle_tmp = last_circle - DS_vec; //Used for small
+				// 	// circle_tmp = last_circle-EndPos-lin_grad3D*0.001;
+				// 	// circle_tmp = last_circle-EndPos+lin_grad3D*0.01;
+				// 	cout << "last_circle " << last_circle << endl;
+				// 	// cout << "Next circle " << EndPos + lin_grad3D * 0.01 << endl;
+				// 	// cout << "EndPos " << EndPos << " last_end " << last_end << endl;
+				// 	cout << "EndPos " << EndPos << "circle_tmp " << circle_tmp << endl;
+				// 	circle_2d = circle_rot_inv * circle_tmp.matrix();
+				// 	// circle_2d = circle_tmp;
+				// 	cout << "circle_2d " << circle_2d << endl;
+				// 	circle_2d_2(0) = circle_2d(0);
+				// 	circle_2d_2(1) = circle_2d(1);
+				// 	// cout << "circle_2d_2" << circle_2d_2 << endl;
+				// 	ds(circle_2d_2, 0.04); // Outputs: new_ds, theta and r.
+				// 	// cout << "new_ds" << new_ds << endl;
+				// 	new_ds_3d << new_ds, 0;
+				// 	cout << "new_ds_3d" << new_ds_3d << endl;
+				// 	circle_grad = circle_rot * new_ds_3d.matrix();
+				// 	// circle_grad = new_ds_3d;
+				// 	// cout << "circle_grad" << circle_grad << endl;
+				// 	// Desired_EndPos(0) = EndPos(0) + lin_grad3D(0) * lin_gain + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
+				// 	// Desired_EndPos(0) = Desired_EndPos(0) + circle_grad(0) * circle_gain;
+				// 	// Desired_EndPos(0) = EndPos(0) + circle_grad(0) * circle_gain; // Works for TD circle
+				// 	// Desired_EndPos(0) = Desired_EndPos(0);
+				// 	// Desired_EndPos(0) = Desired_EndPos(0) + circle_grad(0) * circle_gain + SVM_vec(0) * svm_gain;
+				// 	// Desired_EndPos(1) = EndPos(1) + lin_grad3D(1) * lin_gain + circle_grad(1) * circle_gain + SVM_vec(1) * svm_gain;
+				// 	// Desired_EndPos(1) = Desired_EndPos(1) + circle_grad(1) * circle_gain; // Works for TD circle
+				// 	// Desired_EndPos(1) = EndPos(1) + circle_grad(1) * circle_gain;
+				// 	// Desired_EndPos(1) = Desired_EndPos(1);  // Works for TD circle
+				// 	// Desired_EndPos(1) = EndPos(1) + (target(1) - EndPos(1)) / 500;
+				// 	// Desired_EndPos(2) = EndPos(2) + lin_grad3D(2) * lin_gain + circle_grad(2) * circle_gain + SVM_vec(2) * svm_gain;
+				// 	// Desired_EndPos(2) = Desired_EndPos(2);
+				// 	Desired_EndPos = EndPos + circle_grad * circle_gain + SVM_vec * svm_gain; //Creates TD circles
+				// 	// Desired_EndPos = EndPos + circle_grad * circle_gain + lin_grad*lin_gain + SVM_vec * svm_gain;
+
+				// 	cout << "Lin_ds " << lin_grad3D(0) * lin_gain << " " << lin_grad3D(1) * lin_gain << " " << lin_grad3D(2) * lin_gain << " " << endl;
+				// 	cout << "Circle_ds " << circle_grad(0) * circle_gain << " " << circle_grad(1) * circle_gain << " " << circle_grad(2) * circle_gain << endl;
+				// 	cout << "SVM " << SVM_vec(0) * svm_gain << " " << SVM_vec(1) * svm_gain << " " << SVM_vec(2) * svm_gain << endl;
+				// 	last_circle(0) = EndPos(0) + circle_grad(0) * circle_gain;
+				// 	last_circle(1) = EndPos(1) + circle_grad(1) * circle_gain;
+				// 	last_circle(2) = EndPos(2) + circle_grad(2) * circle_gain;
+				// 	// lambda = (x(2,end)-r.*sin(theta)) /v_circle(2);
+				// 	//  if(lambda <0 ),lambda = 0;end
+				// 	// if(lambda > 5*dt), lambda = 5*dt;end
+				// 	// x_center(1,end+1) = x(1,end)-r.*cos(theta)- v_circle(1)*lambda;
+
+				// 	// last_circle=Desired_EndPos + circle_grad*circle_gain;
+				// 	// DS_vec=EndPos-circle_grad*circle_gain+lin_grad3D*lin_gain;
+				// 	DS_vec = DS_vec + lin_grad3D * lin_gain; //Creates TD circles
+				// 	cout << "DS " << DS_vec << endl;
+				// 	// DS_vec=DS_vec;
+				// 	// last_circle(0) = Desired_EndPos(0) + circle_grad(0) * circle_gain;
+				// 	// last_circle(1) = Desired_EndPos(1) + circle_grad(1) * circle_gain;
+				// 	// last_circle(2) = Desired_EndPos(2);
+
+				// 	// last_circle = EndPos;
+				// 	cout << "Desired_EndPos " << Desired_EndPos << endl;
+				// 	cout << "target " << target << endl;
+				// 	rotation_temp.x() = Desired_End_orientation(0);
+				// 	rotation_temp.y() = Desired_End_orientation(1);
+				// 	rotation_temp.z() = Desired_End_orientation(2);
+				// 	rotation_temp.w() = Desired_End_orientation(3);
+				// 	rot_mat_temp = rotation_temp.toRotationMatrix();
+				// 	Desired_EndDirY(0) = rot_mat_temp(0, 1);
+				// 	Desired_EndDirZ(0) = rot_mat_temp(0, 2);
+				// 	Desired_EndDirY(1) = rot_mat_temp(1, 1);
+				// 	Desired_EndDirZ(1) = rot_mat_temp(1, 2);
+				// 	Desired_EndDirY(2) = rot_mat_temp(2, 1);
+				// 	Desired_EndDirZ(2) = rot_mat_temp(2, 2);
+
+				// 	if (abs(EndPos(1) - target(1)) < 0.1 | abs(DS_vec(1) - target(1)) < 0.1) //Hand: + 0.15
+				// 	{
+				// 		target_hand = (1 - target_hand);
+				// 	}
+				// }
 				else
 				{
 					cout << "In the zone" << endl;
@@ -913,13 +945,13 @@ RobotInterface::Status iiwa_ik::RobotUpdateCore()
 			Desired_JointVel(i) = input;
 		}
 
-		Desired_JointPos = JointPos + Desired_JointVel * dt *0.5;
-		cout << "JointVel " << Desired_JointVel << endl;
-		// Desired_JointPos = 0.8 * Desired_JointPos + 0.2 * (JointPos + Desired_JointVel * dt * 0.4);
+		// Desired_JointPos = JointPos + Desired_JointVel * dt * 0.5;
+		// cout << "JointVel " << Desired_JointVel << endl;
+		Desired_JointPos = 0.85 * Desired_JointPos + 0.15 * (JointPos + Desired_JointVel * dt * 0.4);
 		break;
 	case PLANNER_JOINT:
 
-		Desired_JointPos = JointPos + 0.015 * (1 / dt) * (cJob - JointPos) * dt;
+		Desired_JointPos = JointPos + 0.01 * (1 / dt) * (cJob - JointPos) * dt;
 		Desired_EndPos = EndPos;
 
 		break;
