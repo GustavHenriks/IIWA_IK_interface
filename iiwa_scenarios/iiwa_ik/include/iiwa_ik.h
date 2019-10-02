@@ -30,6 +30,7 @@
 #include "kuka_fri_bridge/JointStateImpedance.h"
 #include "sKinematics.h"
 #include "std_msgs/Int64.h"
+#include "std_msgs/Int8.h"
 #include "std_msgs/Float64.h"
 #include "geometry_msgs/Pose.h"
 #include "geometry_msgs/PoseStamped.h"
@@ -119,6 +120,7 @@ class iiwa_ik : public RobotInterface
 	ros::Publisher pub_command_robot_real;
 	ros::Publisher pub_end_of_robot_measured;
 	ros::Publisher pub_command;
+	ros::Publisher pub_grab;
 
 	geometry_msgs::Pose msg_robot_end;
 	std_msgs::Int64 msg_command;
@@ -194,7 +196,11 @@ class iiwa_ik : public RobotInterface
 	Vector3d base_pos;
 	Vector3d target;
 	Vector3d tmp_vec;
+	Vector3d lin_grad_extra;
+	Vector3d target_tmp;
 
+	double gamma_dist_tmp;
+	std_msgs::Int8 grab_msg;
 
 
 	Vector3d circle_grad;
@@ -216,7 +222,7 @@ class iiwa_ik : public RobotInterface
 	
 	Quaterniond q;
 
-	double disturbance = 0.005; //0.005
+	double disturbance = 0.0005; //0.005
 	double disturbance2;
 	double input;
 	double theta_value;
@@ -255,8 +261,10 @@ class iiwa_ik : public RobotInterface
 
 	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/model.txt";
 	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model.txt";
-	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model2.txt";
+	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model2.txt";
 	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_SVM_test_model3.txt";
+	// std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_test_model4.txt";
+	std::string modelpath = ros::package::getPath(std::string("iiwa_scenarios")) + "/iiwa_ik/data/Arm_test_model7.txt";
 	SVMGrad SVM;
 
 	double gamma_dist;
